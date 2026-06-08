@@ -395,3 +395,371 @@ UserInputService.InputEnded:Connect(function(input)
 		StopFlyBoost()
 	end
 end)
+-- ========= EXTENSION : VÉHICULE NOCLIP (PASSE-MURAILLE) =========
+
+-- CONFIG
+local noclipEnabled = false
+local PhysicsService = game:GetService("PhysicsService")
+
+-- S'assurer que le groupe de collision existe (nom unique pour éviter les conflits)
+local groupName = "ShidoNoclipGroup"
+pcall(function()
+	PhysicsService:RegisterCollisionGroup(groupName)
+	-- Désactive les collisions entre ce groupe et la map/décors (Default)
+	PhysicsService:CollisionGroupSetCollidable(groupName, "Default", false)
+end)
+
+-- Fonction pour appliquer ou retirer le noclip sur le véhicule
+local function SetVehicleNoclip(state)
+	local seat = GetSeat()
+	if not seat then return end
+	
+	-- On récupère le modèle complet de la voiture
+	local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
+	if not vehicleModel then return end
+
+	-- On applique le groupe de collision à toutes les pièces du véhicule
+	for _, part in ipairs(vehicleModel:GetDescendants()) do
+		if part:IsA("BasePart") then
+			-- Sécurité : On ne touche pas au joueur assis dedans
+			if not part:IsAncestorOf(LocalPlayer.Character) then
+				if state then
+					part.CollisionGroup = groupName
+				else
+					part.CollisionGroup = "Default"
+				end
+			end
+		end
+	end
+end
+
+-- Relancer le noclip automatiquement si on change de véhicule ou si la physique se reset
+RunService.Heartbeat:Connect(function()
+	if noclipEnabled then
+		SetVehicleNoclip(true)
+	end
+end)
+
+-- ========= AJOUT INTERFACE (PAGE RAYFIELD EXISTANTE OU NOUVELLE) =========
+-- On crée une nouvelle page dédiée pour cette option
+local NoclipPage = Window:CreateTab("Noclip", 4483362458)
+
+NoclipPage:CreateToggle({
+	Name = "Véhicule Noclip (Passe-Muraille)",
+	CurrentValue = false,
+	Callback = function(value)
+		noclipEnabled = value
+		if not noclipEnabled then
+			-- Si on désactive, on remet les collisions normales immédiatement
+			SetVehicleNoclip(false)
+		end
+		
+		Rayfield:Notify({
+			Title = "Noclip",
+			Content = noclipEnabled and "Noclip activé ! Vous traversez les murs." or "Noclip désactivé !",
+			Duration = 2
+		})
+	end
+})
+-- ========= EXTENSION : ESP JOUEURS (ADAPTATION RAYFIELD) =========
+
+local State = {
+	ESP = {
+		Enabled = true,
+		Glow = true,
+		Name = true,
+		Health = true,
+		Distance = true,
+		Range = 9000000,
+		Color = Color3.fromRGB(255,170,60),
+		Transparency = 0.7,
+		ShowLookLine = true,
+		LookLineLength = 15
+	},
+	TrackedCharacters = {}
+}
+
+local Config = {
+	LookLineDistance = 1.5
+}
+
+local function cleanupESP(character)
+	local data = State.TrackedCharacters[character]
+	if data and data.Visuals then
+		data.Visuals:Destroy()
+	end
+	State.TrackedCharacters[character] = nil
+end
+
+local function createVisualForCharacter(character, player)
+	if not character or character:FindFirstChild("ESPVisual") then return end
+
+	local folder = Instance.new("Folder")
+	folder.Name = "ESPVisual"
+	folder.Parent = character
+
+	local highlight = Instance.new("Highlight")
+	highlight.Parent = folder
+	highlight.Name = "Highlight"
+	highlight.Adornee = character
+	highlight.FillColor = State.ESP.Color
+	highlight.OutlineColor = State.ESP.Color
+	highlight.FillTransparency = State.ESP.Transparency
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Parent = folder
+	billboard.Name = "ESPBillboard"
+	billboard.Size = UDim2.new(0,200,0,80)
+	billboard.StudsOffset = Vector3.new(0,3,0)
+	billboard.AlwaysOnTop = true
+
+	local frame = Instance.new("Frame")
+	frame.Parent = billboard
+	frame.Size = UDim2.fromScale(1,1)
+	frame.BackgroundTransparency = 1
+
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Parent = frame
+	nameLabel.Size = UDim2.new(1,0,0.33,0)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.TextColor3 = State.ESP.Color
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.Text = player.Name
+
+	local healthLabel = Instance.new("TextLabel")
+	healthLabel.Parent = frame
+	healthLabel.Position = UDim2.new(0,0,0.33,0)
+	healthLabel.Size = UDim2.new(1,0,0.33,0)
+	healthLabel.BackgroundTransparency = 1
+	healthLabel.Font = Enum.Font.Gotham
+	healthLabel.TextStrokeTransparency = 0
+
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Parent = frame
+	distanceLabel.Position = UDim2.new(0,0,0.66,0)
+	distanceLabel.Size = UDim2.new(1,0,0.34,0)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.Font = Enum.Font.Gotham
+	distanceLabel.TextStrokeTransparency = 0
+
+	local lookLineFolder = Instance.new("Folder")
+	lookLineFolder.Parent = folder
+	lookLineFolder.Name = "LookLine"
+
+	for i = 1, State.ESP.LookLineLength do
+		local part = Instance.new("Part")
+		part.Parent = lookLineFolder
+		part.Name = "LookLinePart"..i
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Material = Enum.Material.Neon
+		part.Shape = Enum.PartType.Ball
+		part.Size = Vector3.new(0.15,0.15,0.15)
+		part.Color = State.ESP.Color
+	end
+
+	State.TrackedCharacters[character] = {
+		Player = player,
+		Visuals = folder,
+		Highlight = highlight,
+		Billboard = billboard,
+		NameLabel = nameLabel,
+		HealthLabel = healthLabel,
+		DistanceLabel = distanceLabel,
+		LookLineFolder = lookLineFolder
+	}
+end
+
+local function updateLookLine(character, lookLineFolder)
+	if not State.ESP.ShowLookLine or not State.ESP.Enabled then
+		for _, part in ipairs(lookLineFolder:GetChildren()) do
+			if part:IsA("BasePart") then part.Transparency = 1 end
+		end
+		return
+	end
+
+	local head = character:FindFirstChild("Head")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not head or not humanoid then return end
+
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	local lookVector = (humanoid.MoveDirection.Magnitude > 0.1 and humanoid.MoveDirection.Unit) 
+		or (rootPart and rootPart.CFrame.LookVector) 
+		or head.CFrame.LookVector
+
+	for i, part in ipairs(lookLineFolder:GetChildren()) do
+		if part:IsA("BasePart") then
+			local distance = i * Config.LookLineDistance
+			part.Position = head.Position + (lookVector * distance)
+			local fade = (i - 1) / math.max(State.ESP.LookLineLength - 1, 1)
+			part.Transparency = 0.3 + (fade * 0.7)
+			local scale = 1 - (fade * 0.5)
+			part.Size = Vector3.new(0.15 * scale, 0.15 * scale, 0.15 * scale)
+			part.Color = State.ESP.Color
+		end
+	end
+end
+
+local function updateVisual(character)
+	local data = State.TrackedCharacters[character]
+	if not data or not data.Player then return end
+
+	if not State.ESP.Enabled then
+		data.Highlight.Enabled = false
+		data.Billboard.Enabled = false
+		updateLookLine(character, data.LookLineFolder)
+		return
+	end
+
+	local root = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+	if not root then return end
+
+	local myCharacter = LocalPlayer.Character
+	local myRoot = myCharacter and (myCharacter:FindFirstChild("HumanoidRootPart") or myCharacter:FindFirstChild("Head"))
+	local distance = 0
+
+	if myRoot then
+		distance = (root.Position - myRoot.Position).Magnitude
+		if distance > State.ESP.Range then
+			data.Highlight.Enabled = false
+			data.Billboard.Enabled = false
+			return
+		end
+	end
+
+	data.Highlight.Enabled = State.ESP.Glow
+	data.Highlight.FillColor = State.ESP.Color
+	data.Highlight.OutlineColor = State.ESP.Color
+	data.Highlight.FillTransparency = State.ESP.Transparency
+
+	data.Billboard.Enabled = true
+	data.Billboard.Adornee = root
+
+	data.NameLabel.Visible = State.ESP.Name
+	data.NameLabel.Text = data.Player.Name
+	data.NameLabel.TextColor3 = State.ESP.Color
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		local hpPercent = humanoid.Health / math.max(humanoid.MaxHealth, 1)
+		data.HealthLabel.Visible = State.ESP.Health
+		data.HealthLabel.Text = "HP: " .. math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+		data.HealthLabel.TextColor3 = Color3.new(1 - hpPercent, hpPercent, 0)
+	else
+		data.HealthLabel.Visible = false
+	end
+
+	data.DistanceLabel.Visible = State.ESP.Distance
+	data.DistanceLabel.Text = math.floor(distance) .. "m"
+
+	updateLookLine(character, data.LookLineFolder)
+end
+
+local function onCharacterAdded(character, player)
+	if player == LocalPlayer then return end
+	local humanoid = character:WaitForChild("Humanoid", 5)
+	if not humanoid then return end
+	task.wait(0.1)
+	createVisualForCharacter(character, player)
+end
+
+local function onCharacterRemoving(character)
+	cleanupESP(character)
+end
+
+-- Connexions Joueurs
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		if player.Character then onCharacterAdded(player.Character, player) end
+		player.CharacterAdded:Connect(function(char) onCharacterAdded(char, player) end)
+		player.CharacterRemoving:Connect(onCharacterRemoving)
+	end
+end
+
+Players.PlayerAdded:Connect(function(player)
+	if player == LocalPlayer then return end
+	player.CharacterAdded:Connect(function(char) onCharacterAdded(char, player) end)
+	player.CharacterRemoving:Connect(onCharacterRemoving)
+	if player.Character then onCharacterAdded(player.Character, player) end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if player.Character then cleanupESP(player.Character) end
+end)
+
+RunService.Heartbeat:Connect(function()
+	for character, data in pairs(State.TrackedCharacters) do
+		if character and character.Parent then
+			updateVisual(character)
+		else
+			cleanupESP(character)
+		end
+	end
+end)
+
+-- ========= PAGE RAYFIELD : ESP JOUEURS =========
+local ESPPage = Window:CreateTab("ESP Joueurs", 4483362458)
+
+ESPPage:CreateToggle({
+	Name = "Activer l'ESP",
+	CurrentValue = State.ESP.Enabled,
+	Callback = function(v) State.ESP.Enabled = v end
+})
+
+ESPPage:CreateToggle({
+	Name = "Effet de Brillance (Glow)",
+	CurrentValue = State.ESP.Glow,
+	Callback = function(v) State.ESP.Glow = v end
+})
+
+ESPPage:CreateToggle({
+	Name = "Afficher les Noms",
+	CurrentValue = State.ESP.Name,
+	Callback = function(v) State.ESP.Name = v end
+})
+
+ESPPage:CreateToggle({
+	Name = "Afficher la Vie",
+	CurrentValue = State.ESP.Health,
+	Callback = function(v) State.ESP.Health = v end
+})
+
+ESPPage:CreateToggle({
+	Name = "Afficher la Distance",
+	CurrentValue = State.ESP.Distance,
+	Callback = function(v) State.ESP.Distance = v end
+})
+
+ESPPage:CreateToggle({
+	Name = "Ligne de Regard (Look Line)",
+	CurrentValue = State.ESP.ShowLookLine,
+	Callback = function(v) State.ESP.ShowLookLine = v end
+})
+
+ESPPage:CreateSlider({
+	Name = "Distance Max de l'ESP",
+	Range = {100, 5000},
+	Increment = 100,
+	Suffix = "m",
+	CurrentValue = State.ESP.Range,
+	Callback = function(v) State.ESP.Range = v end
+})
+
+ESPPage:CreateSlider({
+	Name = "Transparence Remplissage",
+	Range = {0, 100},
+	Increment = 5,
+	Suffix = "%",
+	CurrentValue = State.ESP.Transparency * 100,
+	Callback = function(v) State.ESP.Transparency = v / 100 end
+})
+
+ESPPage:CreateColorPicker({
+	Name = "Couleur de l'ESP",
+	Color = State.ESP.Color,
+	Callback = function(v) State.ESP.Color = v end
+})
