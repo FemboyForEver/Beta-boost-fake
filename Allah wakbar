@@ -1121,23 +1121,22 @@ NoclipPage:CreateKeybind({
 		end
 	end,
 })
--- ========= EXTENSION : ROULER SUR L'EAU (DRIVE ON WATER) =========
+-- ========= EXTENSION : ONGLET JESUS DRIVE (ROULER SUR L'EAU) =========
 
 local driveOnWaterEnabled = false
 local waterPlatform = nil
 local waterLoopConnection = nil
 
--- Hauteur moyenne de l'eau détectée (s'adapte automatiquement sur la plupart des jeux)
+-- Détection automatique de la hauteur de l'eau
 local function getWaterLevel()
-	-- On tente de trouver le niveau de l'eau via le Terrain de Roblox
 	local terrain = workspace:FindFirstChildOfClass("Terrain")
 	if terrain then
-		-- Souvent l'eau par défaut est proche de l'axe Y = 0 ou de la surface du terrain
-		return 0 -- Ajustable si un jeu spécifique utilise une autre hauteur fixe
+		return 0 -- Hauteur standard de l'eau sur Roblox (Ajustable si besoin)
 	end
 	return 0
 end
 
+-- Logique physique pour déplacer la plateforme sous les roues
 local function handleWaterDriving()
 	local seat = GetSeat()
 	if not seat or not seat:IsA("VehicleSeat") then 
@@ -1148,68 +1147,79 @@ local function handleWaterDriving()
 	local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
 	if not vehicleModel then return end
 
-	-- Position actuelle de la voiture
 	local carPos = seat.Position
 	local waterHeight = getWaterLevel()
 
-	-- Si la voiture s'approche ou descend en dessous du niveau de l'eau
+	-- Si le véhicule s'approche ou touche l'eau
 	if carPos.Y <= waterHeight + 5 then
 		if not waterPlatform or not waterPlatform.Parent then
-			-- Création de la plaque de collision invisible sur l'eau
 			waterPlatform = Instance.new("Part")
-			waterPlatform.Name = "WaterDrive_Platform"
-			waterPlatform.Size = Vector3.new(100, 1, 100)
-			waterPlatform.Transparency = 1 -- Totalement invisible
+			waterPlatform.Name = "JesusDrive_Platform"
+			waterPlatform.Size = Vector3.new(150, 1, 150)
+			waterPlatform.Transparency = 1 -- Invisible
+			waterPlatform.Values = "SmoothPlastic"
 			waterPlatform.Anchored = true
 			waterPlatform.CanCollide = true
-			waterPlatform.Material = Enum.Material.SmoothPlastic
 			waterPlatform.Parent = workspace
 		end
 		
-		-- On déplace la plaque sous les roues de la voiture en temps réel
+		-- Positionne la plaque parfaitement sous la voiture au niveau de la surface
 		waterPlatform.CFrame = CFrame.new(carPos.X, waterHeight - 0.5, carPos.Z)
 	else
-		-- Si la voiture est sur la terre ferme ou en l'air, on éloigne la plateforme
+		-- Si on quitte l'eau, on nettoie pour éviter les murs invisibles sur terre
 		if waterPlatform then
-			waterPlatform.Size = Vector3.new(0, 0, 0) -- Réduction pour annuler la collision
 			waterPlatform:Destroy()
 			waterPlatform = nil
 		end
 	end
 end
 
--- ========= INTÉGRATION DANS L'ONGLET EXISTANT =========
-if NoclipPage then
-	NoclipPage:CreateSection("Options Physiques Spéciales")
+-- ========= CRÉATION DE L'ONGLET RAYFIELD DÉDIÉ =========
+local WaterTab = Window:CreateTab("Jesus Drive", 4483362458)
 
-	NoclipPage:CreateToggle({
-		Name = "Jésus Mode",
-		CurrentValue = false,
-		Callback = function(value)
-			driveOnWaterEnabled = value
-			
-			if driveOnWaterEnabled then
-				waterLoopConnection = RunService.Heartbeat:Connect(handleWaterDriving)
-				Rayfield:Notify({
-					Title = "Physique Véhicule",
-					Content = "jesus mod activer",
-					Duration = 2
-				})
-			else
-				if waterLoopConnection then
-					waterLoopConnection:Disconnect()
-					waterLoopConnection = nil
-				end
-				if waterPlatform then
-					waterPlatform:Destroy()
-					waterPlatform = nil
-				end
-				Rayfield:Notify({
-					Title = "Physique Véhicule",
-					Content = "jesus mod desactiver",
-					Duration = 2
-				})
+local WaterToggle = nil
+
+WaterToggle = WaterTab:CreateToggle({
+	Name = "Activer le Mode Jésus (Rouler sur l'Eau)",
+	CurrentValue = false,
+	Callback = function(value)
+		driveOnWaterEnabled = value
+		
+		if driveOnWaterEnabled then
+			waterLoopConnection = RunService.Heartbeat:Connect(handleWaterDriving)
+			Rayfield:Notify({
+				Title = "Jesus Drive",
+				Content = "Vous pouvez maintenant rouler sur l'eau !",
+				Duration = 2
+			})
+		else
+			if waterLoopConnection then
+				waterLoopConnection:Disconnect()
+				waterLoopConnection = nil
 			end
+			if waterPlatform then
+				waterPlatform:Destroy()
+				waterPlatform = nil
+			end
+			Rayfield:Notify({
+				Title = "Jesus Drive",
+				Content = "Mode désactivé.",
+				Duration = 2
+			})
 		end
-	})
-end
+	end
+})
+
+-- Raccourci Clavier (Keybind) intégré dans l'onglet
+WaterTab:CreateKeybind({
+	Name = "Raccourci Clavier Jésus Mode",
+	CurrentKeybind = "J", -- Touche par défaut (Modifiable en cliquant dessus dans le menu)
+	HoldToInteract = false,
+	Flag = "JesusKeybind",
+	Callback = function()
+		if WaterToggle then
+			-- Inverse l'état du bouton à chaque appui sur la touche
+			WaterToggle:Set(not driveOnWaterEnabled)
+		end
+	end,
+})
