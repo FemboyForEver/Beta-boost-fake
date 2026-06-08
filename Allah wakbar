@@ -1223,3 +1223,55 @@ WaterTab:CreateKeybind({
 		end
 	end,
 })
+-- ========= EXTENSION : ONGLET SAUVEGARDE (ADAPTÉ À SHIDOMENU) =========
+
+local SaveTab = Window:CreateTab("Sauvegarde", 4483362458)
+
+SaveTab:CreateSection("Gestion de la Configuration")
+
+SaveTab:CreateButton({
+	Name = "Sauvegarder mes Touches & Options",
+	Callback = function()
+		-- Sauvegarde les données dans le dossier ShidoMenu/Config
+		pcall(function()
+			Rayfield:SaveConfiguration()
+		end)
+		
+		Rayfield:Notify({
+			Title = "Configuration",
+			Content = "Toutes vos touches et options ont été sauvegardées dans ShidoMenu !",
+			Duration = 2
+		})
+	end
+})
+
+SaveTab:CreateButton({
+	Name = "Charger la dernière sauvegarde",
+	Callback = function()
+		-- Recharge manuellement les données
+		pcall(function()
+			Rayfield:LoadConfiguration()
+		end)
+		
+		Rayfield:Notify({
+			Title = "Configuration",
+			Content = "Configuration rechargée avec succès !",
+			Duration = 2
+		})
+	end
+})
+
+SaveTab:CreateSection("Aide & Infos")
+SaveTab:CreateParagraph({
+	Title = "Comment fonctionne l'automatisation ?", 
+	Content = "Le script chargera tes touches automatiquement à chaque fois que tu relanceras le menu. Quand tu modifies un Keybind, clique simplement sur 'Sauvegarder mes Touches & Options' pour mettre à jour ton fichier de configuration."
+})
+
+-- ========= CHARGEMENT AUTOMATIQUE AU LANCEMENT =========
+-- Restaure instantanément tes touches 1 seconde après l'exécution du script
+task.spawn(function()
+	task.wait(1)
+	pcall(function()
+		Rayfield:LoadConfiguration()
+	end)
+end)
