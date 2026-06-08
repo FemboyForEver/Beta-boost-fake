@@ -404,7 +404,7 @@ local State = {
 		Name = true,
 		Health = true,
 		Distance = true,
-		Range = 9000000,
+		Range = 484848,
 		Color = Color3.fromRGB(255,170,60),
 		Transparency = 0.7,
 		ShowLookLine = true,
@@ -676,7 +676,7 @@ ESPPage:CreateToggle({
 
 ESPPage:CreateSlider({
 	Name = "Distance Max de l'ESP",
-	Range = {100, 5000},
+	Range = {100, 99999999},
 	Increment = 100,
 	Suffix = "m",
 	CurrentValue = State.ESP.Range,
@@ -873,7 +873,7 @@ flyLoopConnection = game:GetService("RunService").RenderStepped:Connect(handleFl
 local FlyTab = Window:CreateTab("Vehicle Fly", 4483362458)
 
 local FlyToggle = FlyTab:CreateToggle({
-	Name = "Activer le Vol (Fly)",
+	Name = "vehicule fly",
 	CurrentValue = false,
 	Callback = function(state)
 		FlyEnabled = state
@@ -1031,3 +1031,51 @@ if FlyTab then
 		end
 	end)
 end
+-- ========= NOUVEL ONGLET RAYFIELD : NOCLIP AVEC RACCOURCI =========
+local NoclipPage = Window:CreateTab("Noclip", 4483362458)
+
+-- Variable pour garder une référence sur le Toggle
+local NoclipToggle = nil
+
+-- 1. Le bouton d'activation principal (Toggle)
+NoclipToggle = NoclipPage:CreateToggle({
+	Name = "Noclip vehicule",
+	CurrentValue = false,
+	Callback = function(value)
+		wallNoclipEnabled = value
+		
+		if wallNoclipEnabled then
+			-- Lance la détection rapide sur le Heartbeat
+			if not wallCheckConnection then
+				wallCheckConnection = RunService.Heartbeat:Connect(updateWallNoclip)
+			end
+		else
+			-- Arrête la détection
+			if wallCheckConnection then
+				wallCheckConnection = RunService.Heartbeat:Connect(updateWallNoclip)
+				wallCheckConnection:Disconnect()
+				wallCheckConnection = nil
+			end
+		end
+
+		Rayfield:Notify({
+			Title = "Noclip vehicule",
+			Content = wallNoclipEnabled and "Activé" or "Désactivé",
+			Duration = 2
+		})
+	end
+})
+
+-- 2. Le système de touche (Keybind) placé directement en dessous
+NoclipPage:CreateKeybind({
+	Name = "Raccourci Clavier Noclip",
+	CurrentKeybind = "N", -- Touche par défaut (Modifiable en cliquant dessus)
+	HoldToInteract = false,
+	Flag = "NoclipKeybind", -- Identifiant unique pour Rayfield
+	Callback = function(Keybind)
+		-- Lorsque la touche est pressée, on inverse l'état du Toggle juste au-dessus
+		if NoclipToggle then
+			NoclipToggle:Set(not wallNoclipEnabled)
+		end
+	end,
+})
