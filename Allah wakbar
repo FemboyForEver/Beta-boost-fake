@@ -960,3 +960,74 @@ PitchToggle = FlyTab:CreateToggle({
 		end
 	end
 })
+-- ========= EXTENSION : KEYBIND POUR LE VEHICLE FLY =========
+
+-- Touches par défaut
+local flyBinds = {
+	pc = Enum.KeyCode.F,
+	gamepad = Enum.KeyCode.ButtonL3
+}
+
+local waitingFlyBind = false
+
+-- Crée un conteneur pour mettre à jour le texte du bouton de rebind
+local flyBindButton = nil
+
+local function getFlyBindText()
+	return "Touche d'activation (" .. flyBinds.pc.Name .. " / " .. flyBinds.gamepad.Name .. ")"
+end
+
+-- Ajout des éléments dans l'onglet existant "Vehicle Fly"
+-- Note : L'onglet 'FlyTab' doit être défini plus haut dans ton script
+if FlyTab then
+	
+	-- Bouton pour changer la touche (Rebind)
+	flyBindButton = FlyTab:CreateButton({
+		Name = getFlyBindText(),
+		Callback = function()
+			waitingFlyBind = true
+			Rayfield:Notify({
+				Title = "Raccourci Fly",
+				Content = "Appuie sur une touche du clavier ou un bouton de manette...",
+				Duration = 3
+			})
+		end
+	})
+	
+	-- Détection de l'appui sur la touche pour On/Off
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then return end
+		
+		-- Gestion du rebind si on attend une touche
+		if waitingFlyBind then
+			if input.UserInputType == Enum.UserInputType.Keyboard then
+				flyBinds.pc = input.KeyCode
+				waitingFlyBind = false
+			elseif input.UserInputType == Enum.UserInputType.Gamepad1 then
+				flyBinds.gamepad = input.KeyCode
+				waitingFlyBind = false
+			end
+			
+			if not waitingFlyBind then
+				flyBindButton:Set(getFlyBindText())
+				Rayfield:Notify({
+					Title = "Raccourci Fly",
+					Content = "Nouvelle touche enregistrée !",
+					Duration = 2
+				})
+			end
+			return
+		end
+		
+		-- Activation / Désactivation du Fly via la touche
+		local isPCKey = (input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == flyBinds.pc)
+		local isGamepadKey = (input.UserInputType == Enum.UserInputType.Gamepad1 and input.KeyCode == flyBinds.gamepad)
+		
+		if isPCKey or isGamepadKey then
+			-- On change l'état du FlyToggle (ce qui déclenche automatiquement la logique du Fly)
+			if FlyToggle then
+				FlyToggle:Set(not FlyEnabled)
+			end
+		end
+	end)
+end
