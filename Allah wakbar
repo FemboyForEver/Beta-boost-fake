@@ -1121,3 +1121,95 @@ NoclipPage:CreateKeybind({
 		end
 	end,
 })
+-- ========= EXTENSION : ROULER SUR L'EAU (DRIVE ON WATER) =========
+
+local driveOnWaterEnabled = false
+local waterPlatform = nil
+local waterLoopConnection = nil
+
+-- Hauteur moyenne de l'eau détectée (s'adapte automatiquement sur la plupart des jeux)
+local function getWaterLevel()
+	-- On tente de trouver le niveau de l'eau via le Terrain de Roblox
+	local terrain = workspace:FindFirstChildOfClass("Terrain")
+	if terrain then
+		-- Souvent l'eau par défaut est proche de l'axe Y = 0 ou de la surface du terrain
+		return 0 -- Ajustable si un jeu spécifique utilise une autre hauteur fixe
+	end
+	return 0
+end
+
+local function handleWaterDriving()
+	local seat = GetSeat()
+	if not seat or not seat:IsA("VehicleSeat") then 
+		if waterPlatform then waterPlatform.Size = Vector3.new(0,0,0) end
+		return 
+	end
+
+	local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
+	if not vehicleModel then return end
+
+	-- Position actuelle de la voiture
+	local carPos = seat.Position
+	local waterHeight = getWaterLevel()
+
+	-- Si la voiture s'approche ou descend en dessous du niveau de l'eau
+	if carPos.Y <= waterHeight + 5 then
+		if not waterPlatform or not waterPlatform.Parent then
+			-- Création de la plaque de collision invisible sur l'eau
+			waterPlatform = Instance.new("Part")
+			waterPlatform.Name = "WaterDrive_Platform"
+			waterPlatform.Size = Vector3.new(100, 1, 100)
+			waterPlatform.Transparency = 1 -- Totalement invisible
+			waterPlatform.Anchored = true
+			waterPlatform.CanCollide = true
+			waterPlatform.Material = Enum.Material.SmoothPlastic
+			waterPlatform.Parent = workspace
+		end
+		
+		-- On déplace la plaque sous les roues de la voiture en temps réel
+		waterPlatform.CFrame = CFrame.new(carPos.X, waterHeight - 0.5, carPos.Z)
+	else
+		-- Si la voiture est sur la terre ferme ou en l'air, on éloigne la plateforme
+		if waterPlatform then
+			waterPlatform.Size = Vector3.new(0, 0, 0) -- Réduction pour annuler la collision
+			waterPlatform:Destroy()
+			waterPlatform = nil
+		end
+	end
+end
+
+-- ========= INTÉGRATION DANS L'ONGLET EXISTANT =========
+if NoclipPage then
+	NoclipPage:CreateSection("Options Physiques Spéciales")
+
+	NoclipPage:CreateToggle({
+		Name = "Jésus Mode",
+		CurrentValue = false,
+		Callback = function(value)
+			driveOnWaterEnabled = value
+			
+			if driveOnWaterEnabled then
+				waterLoopConnection = RunService.Heartbeat:Connect(handleWaterDriving)
+				Rayfield:Notify({
+					Title = "Physique Véhicule",
+					Content = "jesus mod activer",
+					Duration = 2
+				})
+			else
+				if waterLoopConnection then
+					waterLoopConnection:Disconnect()
+					waterLoopConnection = nil
+				end
+				if waterPlatform then
+					waterPlatform:Destroy()
+					waterPlatform = nil
+				end
+				Rayfield:Notify({
+					Title = "Physique Véhicule",
+					Content = "jesus mod desactiver",
+					Duration = 2
+				})
+			end
+		end
+	})
+end
