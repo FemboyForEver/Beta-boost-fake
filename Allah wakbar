@@ -395,27 +395,6 @@ UserInputService.InputEnded:Connect(function(input)
 		StopFlyBoost()
 	end
 end)
--- ========= AJOUT INTERFACE (PAGE RAYFIELD EXISTANTE OU NOUVELLE) =========
--- On crée une nouvelle page dédiée pour cette option
-local NoclipPage = Window:CreateTab("Noclip", 4483362458)
-
-NoclipPage:CreateToggle({
-	Name = "Véhicule Noclip (Passe-Muraille)",
-	CurrentValue = false,
-	Callback = function(value)
-		noclipEnabled = value
-		if not noclipEnabled then
-			-- Si on désactive, on remet les collisions normales immédiatement
-			SetVehicleNoclip(false)
-		end
-		
-		Rayfield:Notify({
-			Title = "Noclip",
-			Content = noclipEnabled and "Noclip activé ! Vous traversez les murs." or "Noclip désactivé !",
-			Duration = 2
-		})
-	end
-})
 -- ========= EXTENSION : ESP JOUEURS (ADAPTATION RAYFIELD) =========
 
 local State = {
