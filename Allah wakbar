@@ -1031,42 +1031,51 @@ if FlyTab then
 		end
 	end)
 end
--- ========= RECONSTRUCTION : SYSTEME NOCLIP MURS ULTRA-STABLE =========
+-- ========= RECONSTRUCTION : SYSTEME NOCLIP TOTAL (VÉHICULE + JOUEUR) =========
 
 local wallNoclipEnabled = false
 local noclipConnection = nil
 local originalCollides = {}
 
--- Fonction pour scanner le véhicule et désactiver les collisions de ses pièces
-local function applyVehicleNoclip()
+-- Fonction pour passer en noclip le véhicule ET le joueur
+local function applyTotalNoclip()
+	-- 1. Noclip du Véhicule
 	local seat = GetSeat()
-	if not seat or not seat:IsA("VehicleSeat") then return end
+	if seat and seat:IsA("VehicleSeat") then
+		local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
+		if vehicleModel then
+			for _, part in ipairs(vehicleModel:GetDescendants()) do
+				if part:IsA("BasePart") then
+					-- On ignore les pièces du joueur ici pour les traiter juste après
+					if not part:IsAncestorOf(LocalPlayer.Character) then
+						if originalCollides[part] == nil then
+							originalCollides[part] = part.CanCollide
+						end
+						part.CanCollide = false
+					end
+				end
+			end
+		end
+		-- Sécurité pour maintenir le moteur de conduite actif
+		seat.CanCollide = false
+	end
 
-	local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
-	if not vehicleModel then return end
-
-	-- On désactive la collision de TOUTES les pièces de la voiture
-	for _, part in ipairs(vehicleModel:GetDescendants()) do
-		if part:IsA("BasePart") then
-			-- On protège le joueur pour ne pas qu'il glisse hors du véhicule
-			if not part:IsAncestorOf(LocalPlayer.Character) then
-				-- Sauvegarde de l'état d'origine si ce n'est pas fait
+	-- 2. Noclip du Joueur (Évite l'éjection à travers les structures)
+	local char = LocalPlayer.Character
+	if char then
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
 				if originalCollides[part] == nil then
 					originalCollides[part] = part.CanCollide
 				end
-				
-				-- Force la perte de collision (sauf pour le sol grâce au moteur Roblox)
 				part.CanCollide = false
 			end
 		end
 	end
-	
-	-- Petite astuce anti-glitch : On force le siège à rester actif
-	seat.CanCollide = false
 end
 
--- Restauration complète quand on éteint le cheat
-local function disableVehicleNoclip()
+-- Restauration complète des collisions d'origine
+local function disableTotalNoclip()
 	for part, originalState in pairs(originalCollides) do
 		if part and part.Parent then
 			part.CanCollide = originalState
@@ -1080,31 +1089,30 @@ local NoclipPage = Window:CreateTab("Noclip", 4483362458)
 local NoclipToggle = nil
 
 NoclipToggle = NoclipPage:CreateToggle({
-	Name = "Activer le Noclip Véhicule",
+	Name = "vahicule noclip",
 	CurrentValue = false,
 	Callback = function(value)
 		wallNoclipEnabled = value
 		
 		if wallNoclipEnabled then
-			-- On force l'application en boucle rapide pour contrer la physique du jeu
-			noclipConnection = RunService.Stepped:Connect(applyVehicleNoclip)
-			Rayfield:Notify({Title = "Noclip", Content = "Noclip Activé ! Foncez dans les murs.", Duration = 2})
+			-- Boucle ultra-rapide avant le rendu physique
+			noclipConnection = RunService.Stepped:Connect(applyTotalNoclip)
+			Rayfield:Notify({Title = "Noclip", Content = "Noclip Global Activé (Voiture + Perso) !", Duration = 2})
 		else
-			-- On coupe la boucle et on remet les collisions normales
 			if noclipConnection then
 				noclipConnection:Disconnect()
 				noclipConnection = nil
 			end
-			disableVehicleNoclip()
+			disableTotalNoclip()
 			Rayfield:Notify({Title = "Noclip", Content = "Noclip Désactivé !", Duration = 2})
 		end
 	end
 })
 
--- Le système de touche (Keybind) placé juste en dessous
+-- Système de touche (Keybind) juste en dessous
 NoclipPage:CreateKeybind({
 	Name = "Raccourci Clavier Noclip",
-	CurrentKeybind = "N", -- Touche "N" par défaut (modifiable en cliquant dessus)
+	CurrentKeybind = "N",
 	HoldToInteract = false,
 	Flag = "NoclipKeybind",
 	Callback = function()
