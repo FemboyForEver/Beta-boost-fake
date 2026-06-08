@@ -1031,49 +1031,83 @@ if FlyTab then
 		end
 	end)
 end
+-- ========= RECONSTRUCTION : SYSTEME NOCLIP MURS ULTRA-STABLE =========
+
+local wallNoclipEnabled = false
+local noclipConnection = nil
+local originalCollides = {}
+
+-- Fonction pour scanner le véhicule et désactiver les collisions de ses pièces
+local function applyVehicleNoclip()
+	local seat = GetSeat()
+	if not seat or not seat:IsA("VehicleSeat") then return end
+
+	local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
+	if not vehicleModel then return end
+
+	-- On désactive la collision de TOUTES les pièces de la voiture
+	for _, part in ipairs(vehicleModel:GetDescendants()) do
+		if part:IsA("BasePart") then
+			-- On protège le joueur pour ne pas qu'il glisse hors du véhicule
+			if not part:IsAncestorOf(LocalPlayer.Character) then
+				-- Sauvegarde de l'état d'origine si ce n'est pas fait
+				if originalCollides[part] == nil then
+					originalCollides[part] = part.CanCollide
+				end
+				
+				-- Force la perte de collision (sauf pour le sol grâce au moteur Roblox)
+				part.CanCollide = false
+			end
+		end
+	end
+	
+	-- Petite astuce anti-glitch : On force le siège à rester actif
+	seat.CanCollide = false
+end
+
+-- Restauration complète quand on éteint le cheat
+local function disableVehicleNoclip()
+	for part, originalState in pairs(originalCollides) do
+		if part and part.Parent then
+			part.CanCollide = originalState
+		end
+	end
+	originalCollides = {}
+end
+
 -- ========= NOUVEL ONGLET RAYFIELD : NOCLIP AVEC RACCOURCI =========
 local NoclipPage = Window:CreateTab("Noclip", 4483362458)
-
--- Variable pour garder une référence sur le Toggle
 local NoclipToggle = nil
 
--- 1. Le bouton d'activation principal (Toggle)
 NoclipToggle = NoclipPage:CreateToggle({
-	Name = "Noclip vehicule",
+	Name = "Activer le Noclip Véhicule",
 	CurrentValue = false,
 	Callback = function(value)
 		wallNoclipEnabled = value
 		
 		if wallNoclipEnabled then
-			-- Lance la détection rapide sur le Heartbeat
-			if not wallCheckConnection then
-				wallCheckConnection = RunService.Heartbeat:Connect(updateWallNoclip)
-			end
+			-- On force l'application en boucle rapide pour contrer la physique du jeu
+			noclipConnection = RunService.Stepped:Connect(applyVehicleNoclip)
+			Rayfield:Notify({Title = "Noclip", Content = "Noclip Activé ! Foncez dans les murs.", Duration = 2})
 		else
-			-- Arrête la détection
-			if wallCheckConnection then
-				wallCheckConnection = RunService.Heartbeat:Connect(updateWallNoclip)
-				wallCheckConnection:Disconnect()
-				wallCheckConnection = nil
+			-- On coupe la boucle et on remet les collisions normales
+			if noclipConnection then
+				noclipConnection:Disconnect()
+				noclipConnection = nil
 			end
+			disableVehicleNoclip()
+			Rayfield:Notify({Title = "Noclip", Content = "Noclip Désactivé !", Duration = 2})
 		end
-
-		Rayfield:Notify({
-			Title = "Noclip vehicule",
-			Content = wallNoclipEnabled and "Activé" or "Désactivé",
-			Duration = 2
-		})
 	end
 })
 
--- 2. Le système de touche (Keybind) placé directement en dessous
+-- Le système de touche (Keybind) placé juste en dessous
 NoclipPage:CreateKeybind({
 	Name = "Raccourci Clavier Noclip",
-	CurrentKeybind = "N", -- Touche par défaut (Modifiable en cliquant dessus)
+	CurrentKeybind = "N", -- Touche "N" par défaut (modifiable en cliquant dessus)
 	HoldToInteract = false,
-	Flag = "NoclipKeybind", -- Identifiant unique pour Rayfield
-	Callback = function(Keybind)
-		-- Lorsque la touche est pressée, on inverse l'état du Toggle juste au-dessus
+	Flag = "NoclipKeybind",
+	Callback = function()
 		if NoclipToggle then
 			NoclipToggle:Set(not wallNoclipEnabled)
 		end
