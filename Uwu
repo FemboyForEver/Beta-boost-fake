@@ -1,0 +1,397 @@
+-- 🚗 Menu by Shido (Rayfield Adaptation v2 - PC & Gamepad)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ========= CONFIG =========
+local velocityMult = 0.5 -- puissance boost basique
+local velocityMult2 = 0.4 -- puissance frein
+local jumpPower = 50      -- puissance saut
+local maxMPH = 1000        -- vitesse max pour speed changer
+local accelerationMPH = 300 -- accélération MPH/s
+
+-- Conversion MPH -> studs/s
+local function MPHtoStuds(mph)
+	return mph / 0.626
+end
+
+-- ========= BINDS (MANETTE & CLAVIER) =========
+local binds = {
+	-- Manette
+	boost = Enum.KeyCode.ButtonA,
+	accel = Enum.KeyCode.ButtonR2,
+	brake = Enum.KeyCode.ButtonB,
+	stop  = Enum.KeyCode.ButtonX,
+	jump  = Enum.KeyCode.ButtonY,
+	flyBoost = Enum.KeyCode.ButtonL1,
+	
+	-- Clavier (PC)
+	pc_boost = Enum.KeyCode.LeftShift,
+	pc_accel = Enum.KeyCode.Z,
+	pc_brake = Enum.KeyCode.S,
+	pc_stop  = Enum.KeyCode.X,
+	pc_jump  = Enum.KeyCode.Space,
+	pc_flyBoost = Enum.KeyCode.A
+}
+
+-- ========= FONCTIONS =========
+local function GetSeat()
+	local char = LocalPlayer.Character
+	if not char then return end
+	local hum = char:FindFirstChildWhichIsA("Humanoid")
+	if hum then return hum.SeatPart end
+end
+
+-- 🔹 BOOST BASIQUE (A / Shift)
+local function Boost()
+	local seat = GetSeat()
+	if seat and seat:IsA("VehicleSeat") then
+		seat.AssemblyLinearVelocity += seat.CFrame.LookVector * (velocityMult * 120)
+	end
+end
+
+-- 🔹 FREIN / STOP / JUMP
+local accelerating = false
+
+local function Brake()
+	accelerating = false
+	local seat = GetSeat()
+	if seat and seat:IsA("VehicleSeat") then
+		seat.AssemblyLinearVelocity *= (1 - velocityMult2)
+	end
+end
+
+local function Stop()
+	accelerating = false
+	local seat = GetSeat()
+	if seat and seat:IsA("VehicleSeat") then
+		seat.AssemblyLinearVelocity = Vector3.zero
+		seat.AssemblyAngularVelocity = Vector3.zero
+	end
+end
+
+local function Jump()
+	local seat = GetSeat()
+	if seat and seat:IsA("VehicleSeat") then
+		seat.AssemblyLinearVelocity += Vector3.new(0, jumpPower, 0)
+	end
+end
+
+-- 🔹 ACCÉLÉRATION PROGRESSIVE / SPEED CHANGER
+local realisticMode = false
+
+RunService.Heartbeat:Connect(function(dt)
+	local seat = GetSeat()
+	if not seat or not seat:IsA("VehicleSeat") then return end
+
+	if accelerating then
+		if realisticMode then
+			local forward = seat.CFrame.LookVector
+			local vel = seat.AssemblyLinearVelocity
+			seat.AssemblyLinearVelocity = vel + forward * (accelerationMPH * dt / 2)
+		else
+			local targetSpeed = MPHtoStuds(maxMPH)
+			local accelStuds = MPHtoStuds(accelerationMPH)
+			local forward = seat.CFrame.LookVector
+			local vel = seat.AssemblyLinearVelocity
+			local currentSpeed = vel:Dot(forward)
+			local newSpeed = math.min(currentSpeed + accelStuds * dt, targetSpeed)
+			seat.AssemblyLinearVelocity = Vector3.new(
+				forward.X * newSpeed,
+				vel.Y,
+				forward.Z * newSpeed
+			)
+		end
+	end
+end)
+
+-- ========= RAYFIELD =========
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+	Name = "Shido Vehicle Menu",
+	LoadingTitle = "Chargement...",
+	LoadingSubtitle = "by Shido",
+	ConfigurationSaving = { Enabled = true, FolderName = "ShidoMenu", FileName = "Config" },
+	KeySystem = false
+})
+
+-- ========= PAGES =========
+local BoostPage = Window:CreateTab("Boost", 4483362458)
+local BrakePage = Window:CreateTab("Frein", 4483362458)
+local JumpPage = Window:CreateTab("Jump", 4483362458)
+local SpeedPage = Window:CreateTab("Speed", 4483362458)
+
+-- ========= SLIDERS =========
+BoostPage:CreateSlider({
+	Name = "Puissance Boost",
+	Range = {0,100},
+	Increment = 1,
+	Suffix = "%",
+	CurrentValue = velocityMult*100,
+	Callback = function(v) velocityMult = v/100 end
+})
+
+BrakePage:CreateSlider({
+	Name = "Puissance Frein",
+	Range = {0,100},
+	Increment = 1,
+	Suffix = "%",
+	CurrentValue = velocityMult2*100,
+	Callback = function(v) velocityMult2 = v/100 end
+})
+
+JumpPage:CreateSlider({
+	Name = "Puissance Jump",
+	Range = {0,200},
+	Increment = 1,
+	Suffix = " stud",
+	CurrentValue = jumpPower,
+	Callback = function(v) jumpPower = v end
+})
+
+SpeedPage:CreateSlider({
+	Name = "Vitesse Max",
+	Range = {100,2000},
+	Increment = 50,
+	Suffix = " MPH",
+	CurrentValue = maxMPH,
+	Callback = function(v) maxMPH = v end
+})
+
+SpeedPage:CreateSlider({
+	Name = "Accélération",
+	Range = {50,1000},
+	Increment = 50,
+	Suffix = " MPH/s",
+	CurrentValue = accelerationMPH,
+	Callback = function(v) accelerationMPH = v end
+})
+
+SpeedPage:CreateToggle({
+	Name = "Mode Réaliste",
+	CurrentValue = false,
+	Callback = function(value) realisticMode = value end
+})
+
+-- ========= REBIND SYSTEM (MANETTE & PC) =========
+local waitingBind = nil
+local rebindButtons = {}
+
+local function startBind(action)
+	waitingBind = action
+	Rayfield:Notify({
+		Title = "Rebind",
+		Content = "Appuie sur une touche (Clavier ou Manette)",
+		Duration = 3
+	})
+end
+
+-- Fonctions utilitaires pour afficher proprement les touches combinées
+local function getBindText(action, keyGamepad, keyPC)
+	return "Changer " .. action .. " (" .. keyGamepad.Name .. " / " .. keyPC.Name .. ")"
+end
+
+rebindButtons.boost = BoostPage:CreateButton({
+	Name = getBindText("Boost", binds.boost, binds.pc_boost),
+	Callback = function() startBind("boost") end
+})
+
+rebindButtons.brake = BrakePage:CreateButton({
+	Name = getBindText("Frein", binds.brake, binds.pc_brake),
+	Callback = function() startBind("brake") end
+})
+
+rebindButtons.stop = BrakePage:CreateButton({
+	Name = getBindText("Stop", binds.stop, binds.pc_stop),
+	Callback = function() startBind("stop") end
+})
+
+rebindButtons.jump = JumpPage:CreateButton({
+	Name = getBindText("Jump", binds.jump, binds.pc_jump),
+	Callback = function() startBind("jump") end
+})
+
+rebindButtons.accel = SpeedPage:CreateButton({
+	Name = getBindText("Accélération", binds.accel, binds.pc_accel),
+	Callback = function() startBind("accel") end
+})
+
+-- ========= INPUTS (MANETTE & PC) =========
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+
+	-- Logique du Rebind automatique (détecte si c'est clavier ou manette)
+	if waitingBind then
+		if input.UserInputType == Enum.UserInputType.Gamepad1 then
+			binds[waitingBind] = input.KeyCode
+		elseif input.UserInputType == Enum.UserInputType.Keyboard then
+			binds["pc_" .. waitingBind] = input.KeyCode
+		else
+			return
+		end
+		
+		-- Rafraîchissement du texte du bouton
+		if rebindButtons[waitingBind] then
+			local cleanName = waitingBind:sub(1,1):upper() .. waitingBind:sub(2)
+			rebindButtons[waitingBind]:Set(getBindText(cleanName, binds[waitingBind], binds["pc_" .. waitingBind]))
+		end
+		waitingBind = nil
+		Rayfield:Notify({Title="Rebind", Content="Touche configurée !", Duration=2})
+		return
+	end
+
+	-- Détection des touches Manette OU Clavier
+	local isGamepad = (input.UserInputType == Enum.UserInputType.Gamepad1)
+	local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
+
+	if (isGamepad and input.KeyCode == binds.boost) or (isKeyboard and input.KeyCode == binds.pc_boost) then 
+		Boost()
+	elseif (isGamepad and input.KeyCode == binds.accel) or (isKeyboard and input.KeyCode == binds.pc_accel) then 
+		accelerating = true
+	elseif (isGamepad and input.KeyCode == binds.brake) or (isKeyboard and input.KeyCode == binds.pc_brake) then 
+		Brake()
+	elseif (isGamepad and input.KeyCode == binds.stop) or (isKeyboard and input.KeyCode == binds.pc_stop) then 
+		Stop()
+	elseif (isGamepad and input.KeyCode == binds.jump) or (isKeyboard and input.KeyCode == binds.pc_jump) then 
+		Jump()
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	local isGamepad = (input.UserInputType == Enum.UserInputType.Gamepad1)
+	local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
+
+	if (isGamepad and input.KeyCode == binds.accel) or (isKeyboard and input.KeyCode == binds.pc_accel) then 
+		accelerating = false 
+	end
+end)
+
+-- ========= BOOST DIRECTIONNEL (CAMERA FLY BOOST + LIFT) =========
+
+-- CONFIG
+local flyBoostPower = 180
+local flyBoosting = false
+local keepVehicleUpright = true
+local liftForce = 65 
+local originalPhysicalProps = nil
+
+-- CAMERA
+local Camera = workspace.CurrentCamera
+
+-- STABILISATION
+local flyGyro = nil
+
+local function StartFlyBoost()
+	local seat = GetSeat()
+	if not seat or not seat:IsA("VehicleSeat") then return end
+
+	flyBoosting = true
+
+	if not originalPhysicalProps then
+		originalPhysicalProps = seat.CustomPhysicalProperties
+	end
+
+	if originalPhysicalProps then
+		seat.CustomPhysicalProperties = PhysicalProperties.new(
+			originalPhysicalProps.Density,
+			0, 
+			originalPhysicalProps.Elasticity,
+			originalPhysicalProps.FrictionWeight,
+			originalPhysicalProps.ElasticityWeight
+		)
+	end
+
+	if keepVehicleUpright and not flyGyro then
+		flyGyro = Instance.new("BodyGyro")
+		flyGyro.MaxTorque = Vector3.new(1e7,1e7,1e7)
+		flyGyro.P = 6000
+		flyGyro.D = 400
+		flyGyro.CFrame = CFrame.new(seat.Position) * CFrame.Angles(0, math.rad(seat.Orientation.Y), 0)
+		flyGyro.Parent = seat
+	end
+
+	seat.AssemblyLinearVelocity += Vector3.new(0, liftForce, 0)
+end
+
+local function StopFlyBoost()
+	flyBoosting = false
+
+	local seat = GetSeat()
+	if seat and originalPhysicalProps then
+		seat.CustomPhysicalProperties = originalPhysicalProps
+	end
+
+	if flyGyro then
+		flyGyro:Destroy()
+		flyGyro = nil
+	end
+end
+
+-- APPLICATION DU BOOST DIRECTIONNEL
+RunService.Heartbeat:Connect(function(dt)
+	if not flyBoosting then return end
+
+	local seat = GetSeat()
+	if not seat or not seat:IsA("VehicleSeat") then return end
+
+	local camDir = Camera.CFrame.LookVector
+	seat.AssemblyLinearVelocity += camDir * flyBoostPower * dt
+	seat.AssemblyLinearVelocity += Vector3.new(0, liftForce * 0.15 * dt, 0)
+
+	if keepVehicleUpright and flyGyro then
+		flyGyro.CFrame = CFrame.new(seat.Position) * CFrame.Angles(0, math.rad(seat.Orientation.Y), 0)
+	end
+end)
+
+-- ========= PAGE RAYFIELD =========
+local DirBoostPage = Window:CreateTab("Boost Directionnel", 4483362458)
+
+DirBoostPage:CreateSlider({
+	Name = "Puissance Boost Directionnel",
+	Range = {50,500},
+	Increment = 10,
+	Suffix = " Force",
+	CurrentValue = flyBoostPower,
+	Callback = function(v) flyBoostPower = v end
+})
+
+DirBoostPage:CreateToggle({
+	Name = "Véhicule toujours droit",
+	CurrentValue = true,
+	Callback = function(v)
+		keepVehicleUpright = v
+		if not v and flyGyro then
+			flyGyro:Destroy()
+			flyGyro = nil
+		end
+	end
+})
+
+-- ========= REBIND MANETTE / PC =========
+rebindButtons.flyBoost = DirBoostPage:CreateButton({
+	Name = getBindText("Boost Directionnel", binds.flyBoost, binds.pc_flyBoost),
+	Callback = function() startBind("flyBoost") end
+})
+
+-- ========= INPUT MAPPER POUR FLY =========
+UserInputService.InputBegan:Connect(function(input, gp)
+	if gp then return end
+	
+	local isGamepad = (input.UserInputType == Enum.UserInputType.Gamepad1)
+	local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
+
+	if (isGamepad and input.KeyCode == binds.flyBoost) or (isKeyboard and input.KeyCode == binds.pc_flyBoost) then
+		StartFlyBoost()
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	local isGamepad = (input.UserInputType == Enum.UserInputType.Gamepad1)
+	local isKeyboard = (input.UserInputType == Enum.UserInputType.Keyboard)
+
+	if (isGamepad and input.KeyCode == binds.flyBoost) or (isKeyboard and input.KeyCode == binds.pc_flyBoost) then
+		StopFlyBoost()
+	end
+end)
