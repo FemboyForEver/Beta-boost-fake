@@ -1172,3 +1172,87 @@ task.spawn(function()
 		Rayfield:LoadConfiguration()
 	end)
 end)
+-- ========= EXTENSION : MODE BÉLIER PHYSIQUE (IMPACT FLING) =========
+
+local ramImpactEnabled = false
+local ramConnection = nil
+local ramPower = 150 -- Puissance de la projection (Augmente si tu veux les envoyer sur la Lune)
+
+local function applyRamImpact()
+	local mySeat = GetSeat()
+	if not mySeat or not mySeat:IsA("VehicleSeat") then return end
+
+	local myVehicle = mySeat:FindFirstAncestorOfClass("Model") or mySeat.Parent
+	if not myVehicle then return end
+
+	-- On cherche les autres véhicules à proximité
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("VehicleSeat") and obj ~= mySeat then
+			local otherVehicle = obj:FindFirstAncestorOfClass("Model") or obj.Parent
+			
+			if otherVehicle and obj.PrimaryPart then
+				-- Calcul de la distance entre ma voiture et l'autre
+				local distance = (mySeat.Position - obj.Position).Magnitude
+				
+				-- Si l'autre voiture est à moins de 12 studs (zone d'impact / collision)
+				if distance <= 12 then
+					-- On cible toutes les pièces physiques de l'autre voiture
+					for _, part in ipairs(otherVehicle:GetDescendants()) do
+						if part:IsA("BasePart") and not part.Anchored then
+							-- On applique une impulsion physique violente (vitesse + rotation)
+							part.Velocity = Vector3.new(math.random(-ramPower, ramPower), ramPower * 1.5, math.random(-ramPower, ramPower))
+							part.RotVelocity = Vector3.new(ramPower, ramPower, ramPower)
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- ========= CRÉATION DE L'ONGLET DÉDIÉ =========
+local RamTab = Window:CreateTab("Bélier", 4483362458)
+
+RamTab:CreateSection("Options de Combat")
+
+local RamToggle = nil
+RamToggle = RamTab:CreateToggle({
+	Name = "Activer le Mode Bélier (Fling au Contact)",
+	CurrentValue = false,
+	Callback = function(value)
+		ramImpactEnabled = value
+		
+		if ramImpactEnabled then
+			-- Boucle rapide pour checker les collisions imminentes
+			ramConnection = RunService.Heartbeat:Connect(applyRamImpact)
+			Rayfield:Notify({
+				Title = "Mode Bélier",
+				Content = "Activé ! Touchez un véhicule pour l'envoyer valser.",
+				Duration = 2
+			})
+		else
+			if ramConnection then
+				ramConnection:Disconnect()
+				ramConnection = nil
+			end
+			Rayfield:Notify({
+				Title = "Mode Bélier",
+				Content = "Désactivé. Conduite pacifique.",
+				Duration = 2
+			})
+		end
+	end
+})
+
+-- Raccourci Clavier (Keybind) pour l'activer/désactiver à la volée
+RamTab:CreateKeybind({
+	Name = "Raccourci Mode Bélier",
+	CurrentKeybind = "K", -- Touche par défaut (Modifiable)
+	HoldToInteract = false,
+	Flag = "RamKeybind",
+	Callback = function()
+		if RamToggle then
+			RamToggle:Set(not ramImpactEnabled)
+		end
+	end,
+})
