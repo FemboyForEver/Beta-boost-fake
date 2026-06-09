@@ -1298,11 +1298,7 @@ RamTab:CreateKeybind({
 		end
 	end,
 })
--- ====================================================================
--- EXTENSION : AIMBOT UNIFIÉ (STYLE RAYFIELD / MÊME STRUCTURE)
--- ====================================================================
-
--- ========== PARAMÈTRES & VARIABLES ==========
+-- ========== PARAMÈTRES & SERVICES ==========
 local player = game.Players.LocalPlayer
 local mouse = player:GetMouse()
 local camera = game.Workspace.CurrentCamera
@@ -1312,39 +1308,36 @@ local uis = game:GetService("UserInputService")
 local aimbotEnabled = false
 local aimbotConnection = nil
 
-local settings = {
+local aimSettings = {
     AimKeyMobile = true,
     WallCheck = true, 
     TeamCheck = false,
     IgnoreFriends = false,
-    
     PrioritizeClosest = true,
     PrioritizeLowestHP = false,
-    
     TargetPart = "Head",
     Smoothness = 5,
     Prediction = 0.165,
     FOV = 180,
-    
     ShowFOV = true,
     RGBFOV = true,
     FOVColor = Color3.fromRGB(255, 50, 50),
-    
     AutoShoot = false,
     TriggerBot = false,
     Airshot = false,
     Knockback = false
 }
 
--- ========== LOGIQUE INTERNE DE L'AIMBOT ==========
+-- Dessin du FOV
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
-fovCircle.Radius = settings.FOV
+fovCircle.Radius = aimSettings.FOV
 fovCircle.Thickness = 2.5
 fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
 fovCircle.NumSides = 128
 fovCircle.Filled = false
 
+-- ========== LOGIQUE DES FONCTIONS ==========
 local function isTargetVisible(targetPart, targetCharacter)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {player.Character, camera}
@@ -1362,26 +1355,25 @@ end
 
 local function getClosestTarget()
     local closestTarget = nil
-    local shortestDistance = settings.FOV
+    local shortestDistance = aimSettings.FOV
     local lowestHealth = math.huge
     
     local mousePos = Vector2.new(mouse.X, mouse.Y)
-    if settings.AimKeyMobile then
+    if aimSettings.AimKeyMobile then
         mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     end
     
     for _, target in pairs(game.Players:GetPlayers()) do
         if target ~= player and target.Character and target.Character:FindFirstChild("Humanoid") and target.Character.Humanoid.Health > 0 then
-            
-            if settings.IgnoreFriends and target:IsFriendsWith(player.UserId) then continue end
-            if settings.TeamCheck and target.Team == player.Team then continue end
+            if aimSettings.IgnoreFriends and target:IsFriendsWith(player.UserId) then continue end
+            if aimSettings.TeamCheck and target.Team == player.Team then continue end
             
             local targetPart
-            if settings.TargetPart == "Random" then
+            if aimSettings.TargetPart == "Random" then
                 local parts = {"Head", "Torso", "HumanoidRootPart"}
                 targetPart = target.Character:FindFirstChild(parts[math.random(1, #parts)])
             else
-                targetPart = target.Character:FindFirstChild(settings.TargetPart)
+                targetPart = target.Character:FindFirstChild(aimSettings.TargetPart)
             end
             
             if not targetPart then targetPart = target.Character:FindFirstChild("Head") end
@@ -1392,12 +1384,10 @@ local function getClosestTarget()
                     local distance = (mousePos - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                     local currentHealth = target.Character.Humanoid.Health
                     
-                    if distance < settings.FOV then
-                        if settings.WallCheck and not isTargetVisible(targetPart, target.Character) then
-                            continue
-                        end
+                    if distance < aimSettings.FOV then
+                        if aimSettings.WallCheck and not isTargetVisible(targetPart, target.Character) then continue end
                         
-                        if settings.PrioritizeLowestHP then
+                        if aimSettings.PrioritizeLowestHP then
                             if currentHealth < lowestHealth then
                                 lowestHealth = currentHealth
                                 closestTarget = {Part = targetPart, Player = target, ScreenPos = screenPos}
@@ -1417,15 +1407,15 @@ local function getClosestTarget()
 end
 
 local function applyAimbotLogic()
-    fovCircle.Radius = settings.FOV
-    fovCircle.Visible = settings.ShowFOV
+    fovCircle.Radius = aimSettings.FOV
+    fovCircle.Visible = aimSettings.ShowFOV
     fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     
-    if settings.RGBFOV then
+    if aimSettings.RGBFOV then
         local hue = (tick() % 4) / 4
         fovCircle.Color = Color3.fromHSV(hue, 1, 1)
     else
-        fovCircle.Color = settings.FOVColor
+        fovCircle.Color = aimSettings.FOVColor
     end
     
     local targetData = getClosestTarget()
@@ -1433,55 +1423,32 @@ local function applyAimbotLogic()
         local target = targetData.Part
         local targetPos = target.Position
         
-        if settings.Prediction > 0 and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
-            local velocity = target.Parent.HumanoidRootPart.Velocity
-            targetPos = targetPos + velocity * settings.Prediction
+        if aimSettings.Prediction > 0 and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
+            targetPos = targetPos + target.Parent.HumanoidRootPart.Velocity * aimSettings.Prediction
         end
         
-        if settings.Airshot and target.Parent and target.Parent:FindFirstChild("Humanoid") then
-            local humanoid = target.Parent.Humanoid
-            if humanoid.FloorMaterial == Enum.Material.Air then
+        if aimSettings.Airshot and target.Parent and target.Parent:FindFirstChild("Humanoid") then
+            if target.Parent.Humanoid.FloorMaterial == Enum.Material.Air then
                 targetPos = targetPos + Vector3.new(0, 2, 0)
             end
         end
         
         local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
-        camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / settings.Smoothness)
+        camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / aimSettings.Smoothness)
         
-        if settings.AutoShoot then
+        if aimSettings.AutoShoot or (aimSettings.TriggerBot and (Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2) - Vector2.new(targetData.ScreenPos.X, targetData.ScreenPos.Y)).Magnitude < 50) then
             local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
-            if tool and tool:FindFirstChild("RemoteFunction") then
-                tool:Activate()
-            end
+            if tool and tool:FindFirstChild("RemoteFunction") then tool:Activate() end
         end
         
-        if settings.TriggerBot then
-            local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-            local distToCenter = (mousePos - Vector2.new(targetData.ScreenPos.X, targetData.ScreenPos.Y)).Magnitude
-            
-            if distToCenter < 50 then
-                local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
-                if tool and tool:FindFirstChild("RemoteFunction") then
-                    tool:Activate()
-                end
-            end
-        end
-        
-        if settings.Knockback and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
+        if aimSettings.Knockback and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
             local root = target.Parent.HumanoidRootPart
-            local direction = (root.Position - camera.CFrame.Position).Unit
-            root.Velocity = root.Velocity + direction * 50
+            root.Velocity = root.Velocity + (root.Position - camera.CFrame.Position).Unit * 50
         end
     end
 end
 
--- Nettoyage du FOV si le script s'arrête
-gui.Destroying:Connect(function()
-    fovCircle:Remove()
-end)
-
-
--- ========== CRÉATION DE L'ONGLET DÉDIÉ (RAYFIELD) ==========
+-- ========== CRÉATION DE L'ONGLET AIMBOT ==========
 local AimTab = Window:CreateTab("🎯 Aimbot", 4483362458)
 
 AimTab:CreateSection("Contrôle Principal")
@@ -1492,161 +1459,54 @@ AimToggle = AimTab:CreateToggle({
     CurrentValue = false,
     Callback = function(value)
         aimbotEnabled = value
-        
         if aimbotEnabled then
             aimbotConnection = runService.RenderStepped:Connect(applyAimbotLogic)
-            Rayfield:Notify({
-                Title = "Aimbot v5",
-                Content = "Aimbot Activé !",
-                Duration = 2
-            })
+            Rayfield:Notify({Title = "Aimbot", Content = "Activé !", Duration = 2})
         else
-            if aimbotConnection then
-                aimbotConnection:Disconnect()
-                aimbotConnection = nil
-            end
+            if aimbotConnection then aimbotConnection:Disconnect() aimbotConnection = nil end
             fovCircle.Visible = false
-            Rayfield:Notify({
-                Title = "Aimbot v5",
-                Content = "Aimbot Désactivé.",
-                Duration = 2
-            })
+            Rayfield:Notify({Title = "Aimbot", Content = "Désactivé.", Duration = 2})
         end
     end
 })
 
--- Raccourci Clavier (Keybind) pour l'Aimbot
 AimTab:CreateKeybind({
     Name = "Raccourci Aimbot",
-    CurrentKeybind = "E", -- Touche par défaut : E
+    CurrentKeybind = "E",
     HoldToInteract = false,
     Flag = "AimKeybind",
     Callback = function()
-        if AimToggle then
-            AimToggle:Set(not aimbotEnabled)
-        end
+        if AimToggle then AimToggle:Set(not aimbotEnabled) end
     end,
 })
 
 AimTab:CreateSection("Filtres & Vérifications")
 
-AimTab:CreateToggle({
-    Name = "Mode Mobile (Visée Auto)",
-    CurrentValue = settings.AimKeyMobile,
-    Callback = function(v) settings.AimKeyMobile = v end
-})
+AimTab:CreateToggle({Name = "Mode Mobile (Visée Auto)", CurrentValue = aimSettings.AimKeyMobile, Callback = function(v) aimSettings.AimKeyMobile = v end})
+AimTab:CreateToggle({Name = "Vérification des Murs", CurrentValue = aimSettings.WallCheck, Callback = function(v) aimSettings.WallCheck = v end})
+AimTab:CreateToggle({Name = "Ignorer les Coéquipiers", CurrentValue = aimSettings.TeamCheck, Callback = function(v) aimSettings.TeamCheck = v end})
+AimTab:CreateToggle({Name = "Ignorer les Amis", CurrentValue = aimSettings.IgnoreFriends, Callback = function(v) aimSettings.IgnoreFriends = v end})
 
-AimTab:CreateToggle({
-    Name = "Vérification des Murs (Wall Check)",
-    CurrentValue = settings.WallCheck,
-    Callback = function(v) settings.WallCheck = v end
-})
+AimTab:CreateSection("Priorités")
 
-AimTab:CreateToggle({
-    Name = "Ignorer les Coéquipiers",
-    CurrentValue = settings.TeamCheck,
-    Callback = function(v) settings.TeamCheck = v end
-})
+AimTab:CreateToggle({Name = "Prioriser le plus Proche", CurrentValue = aimSettings.PrioritizeClosest, Callback = function(v) aimSettings.PrioritizeClosest = v if v then aimSettings.PrioritizeLowestHP = false end end})
+AimTab:CreateToggle({Name = "Prioriser Low HP", CurrentValue = aimSettings.PrioritizeLowestHP, Callback = function(v) aimSettings.PrioritizeLowestHP = v if v then aimSettings.PrioritizeClosest = false end end})
 
-AimTab:CreateToggle({
-    Name = "Ignorer les Amis",
-    CurrentValue = settings.IgnoreFriends,
-    Callback = function(v) settings.IgnoreFriends = v end
-})
+AimTab:CreateSection("Configuration de la Visée")
 
-AimTab:CreateSection("Priorités de Ciblage")
-
-AimTab:CreateToggle({
-    Name = "Prioriser le plus Proche",
-    CurrentValue = settings.PrioritizeClosest,
-    Callback = function(v) 
-        settings.PrioritizeClosest = v 
-        if v then settings.PrioritizeLowestHP = false end
-    end
-})
-
-AimTab:CreateToggle({
-    Name = "Prioriser le moins de Vie (Low HP)",
-    CurrentValue = settings.PrioritizeLowestHP,
-    Callback = function(v) 
-        settings.PrioritizeLowestHP = v 
-        if v then settings.PrioritizeClosest = false end
-    end
-})
-
-AimTab:CreateSection("Configuration Mathématique")
-
-AimTab:CreateSlider({
-    Name = "Fluidité (Smoothness)",
-    Min = 1,
-    Max = 20,
-    CurrentValue = settings.Smoothness,
-    Flag = "AimSmooth",
-    Callback = function(v) settings.Smoothness = v end
-})
-
-AimTab:CreateSlider({
-    Name = "Prédiction",
-    Min = 0,
-    Max = 1,
-    CurrentValue = settings.Prediction,
-    Flag = "AimPredict",
-    Callback = function(v) settings.Prediction = v end
-})
-
-AimTab:CreateSlider({
-    Name = "Rayon du FOV (Degrés)",
-    Min = 30,
-    Max = 360,
-    CurrentValue = settings.FOV,
-    Flag = "AimFOV",
-    Callback = function(v) settings.FOV = v end
-})
-
-AimTab:CreateDropdown({
-    Name = "Partie du Corps Ciblé",
-    Options = {"Head", "Torso", "HumanoidRootPart", "Random"},
-    CurrentValue = settings.TargetPart,
-    Flag = "AimPart",
-    Callback = function(v) settings.TargetPart = v end
-})
+AimTab:CreateSlider({Name = "Fluidité (Smoothness)", Min = 1, Max = 20, CurrentValue = aimSettings.Smoothness, Flag = "AimSmooth", Callback = function(v) aimSettings.Smoothness = v end})
+AimTab:CreateSlider({Name = "Prédiction", Min = 0, Max = 1, CurrentValue = aimSettings.Prediction, Flag = "AimPredict", Callback = function(v) aimSettings.Prediction = v end})
+AimTab:CreateSlider({Name = "Rayon du FOV", Min = 30, Max = 360, CurrentValue = aimSettings.FOV, Flag = "AimFOV", Callback = function(v) aimSettings.FOV = v end})
+AimTab:CreateDropdown({Name = "Partie du Corps", Options = {"Head", "Torso", "HumanoidRootPart", "Random"}, CurrentValue = aimSettings.TargetPart, Flag = "AimPart", Callback = function(v) aimSettings.TargetPart = v end})
 
 AimTab:CreateSection("Style visuel du FOV")
 
-AimTab:CreateToggle({
-    Name = "Afficher le cercle de FOV",
-    CurrentValue = settings.ShowFOV,
-    Callback = function(v) settings.ShowFOV = v end
-})
-
-AimTab:CreateToggle({
-    Name = "Mode Rainbow RGB",
-    CurrentValue = settings.RGBFOV,
-    Callback = function(v) settings.RGBFOV = v end
-})
+AimTab:CreateToggle({Name = "Afficher le cercle", CurrentValue = aimSettings.ShowFOV, Callback = function(v) aimSettings.ShowFOV = v end})
+AimTab:CreateToggle({Name = "Mode Rainbow RGB", CurrentValue = aimSettings.RGBFOV, Callback = function(v) aimSettings.RGBFOV = v end})
 
 AimTab:CreateSection("Options Extras")
 
-AimTab:CreateToggle({
-    Name = "Tir Automatique (Auto Shoot)",
-    CurrentValue = settings.AutoShoot,
-    Callback = function(v) settings.AutoShoot = v end
-})
-
-AimTab:CreateToggle({
-    Name = "Trigger Bot",
-    CurrentValue = settings.TriggerBot,
-    Callback = function(v) settings.TriggerBot = v end
-})
-
-AimTab:CreateToggle({
-    Name = "Airshot Assist",
-    CurrentValue = settings.Airshot,
-    Callback = function(v) settings.Airshot = v end
-})
-
-AimTab:CreateToggle({
-    Name = "Simuler du recul (Knockback)",
-    CurrentValue = settings.Knockback,
-    Callback = function(v) settings.Knockback = v end
-})
+AimTab:CreateToggle({Name = "Tir Automatique", CurrentValue = aimSettings.AutoShoot, Callback = function(v) aimSettings.AutoShoot = v end})
+AimTab:CreateToggle({Name = "Trigger Bot", CurrentValue = aimSettings.TriggerBot, Callback = function(v) aimSettings.TriggerBot = v end})
+AimTab:CreateToggle({Name = "Airshot Assist", CurrentValue = aimSettings.Airshot, Callback = function(v) aimSettings.Airshot = v end})
+AimTab:CreateToggle({Name = "Simuler du recul", CurrentValue = aimSettings.Knockback, Callback = function(v) aimSettings.Knockback = v end})
