@@ -1304,42 +1304,41 @@ local mouse = player:GetMouse()
 local camera = game.Workspace.CurrentCamera
 local runService = game:GetService("RunService")
 
-local megaSettings = {
-    Enabled = false,
-    AimKeyMobile = true,
-    WallCheck = true, 
-    TeamCheck = false,
-    IgnoreFriends = false,
-    PrioritizeClosest = true,
-    PrioritizeLowestHP = false,
-    
-    TargetPart = "Head",
-    Smoothness = 5,
-    Prediction = 0.165,
-    FOV = 180,
-    
-    ShowFOV = true,
-    RGBFOV = false, 
-    FOVColor = Color3.fromRGB(255, 50, 50),
-    FOVSides = 64,   
-    FOVThickness = 2, 
-    
-    AutoShoot = false,
-    TriggerBot = false,
-    Airshot = false,
-    Knockback = false
-}
+-- Variables globales connectées à l'interface
+_G.megaAimbotEnabled = false
+_G.megaAimKeyMobile = true
+_G.megaWallCheck = true 
+_G.megaTeamCheck = false
+_G.megaIgnoreFriends = false
+_G.megaPrioritizeClosest = true
+_G.megaPrioritizeLowestHP = false
 
--- Création et initialisation de l'objet de dessin du FOV
+_G.megaTargetPart = "Head"
+_G.megaSmoothness = 5
+_G.megaPrediction = 165 -- Stocké en entier pour le slider (divisé par 1000 en jeu)
+_G.megaFOV = 180
+
+_G.megaShowFOV = true
+_G.megaRGBFOV = false 
+_G.megaFOVColor = Color3.fromRGB(255, 50, 50)
+_G.megaFOVSides = 64   
+_G.megaFOVThickness = 2 
+
+_G.megaAutoShoot = false
+_G.megaTriggerBot = false
+_G.megaAirshot = false
+_G.megaKnockback = false
+
+-- Création graphique du cercle de FOV
 local fovCircle = Drawing.new("Circle")
 fovCircle.Visible = false
-fovCircle.Radius = megaSettings.FOV
-fovCircle.Thickness = megaSettings.FOVThickness
+fovCircle.Radius = _G.megaFOV
+fovCircle.Thickness = _G.megaFOVThickness
 fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
-fovCircle.NumSides = megaSettings.FOVSides
+fovCircle.NumSides = _G.megaFOVSides
 fovCircle.Filled = false
 
--- ========== MOTEUR DE DÉTECTION ET DE VISÉE ==========
+-- ========== MOTEUR DE DÉTECTION (CALCULS) ==========
 local function isTargetVisible(targetPart, targetCharacter)
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {player.Character, camera}
@@ -1357,26 +1356,26 @@ end
 
 local function getClosestTarget()
     local closestTarget = nil
-    local shortestDistance = megaSettings.FOV
+    local shortestDistance = _G.megaFOV
     local lowestHealth = math.huge
     
     local mousePos = Vector2.new(mouse.X, mouse.Y)
-    if megaSettings.AimKeyMobile then
+    if _G.megaAimKeyMobile then
         mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     end
     
     for _, target in pairs(game.Players:GetPlayers()) do
         if target ~= player and target.Character and target.Character:FindFirstChild("Humanoid") and target.Character.Humanoid.Health > 0 then
             
-            if megaSettings.IgnoreFriends and target:IsFriendsWith(player.UserId) then continue end
-            if megaSettings.TeamCheck and target.Team == player.Team then continue end
+            if _G.megaIgnoreFriends and target:IsFriendsWith(player.UserId) then continue end
+            if _G.megaTeamCheck and target.Team == player.Team then continue end
             
             local targetPart
-            if megaSettings.TargetPart == "Random" then
+            if _G.megaTargetPart == "Random" then
                 local parts = {"Head", "Torso", "HumanoidRootPart"}
                 targetPart = target.Character:FindFirstChild(parts[math.random(1, #parts)])
             else
-                targetPart = target.Character:FindFirstChild(megaSettings.TargetPart)
+                targetPart = target.Character:FindFirstChild(_G.megaTargetPart)
             end
             
             if not targetPart then targetPart = target.Character:FindFirstChild("Head") end
@@ -1387,12 +1386,12 @@ local function getClosestTarget()
                     local distance = (mousePos - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                     local currentHealth = target.Character.Humanoid.Health
                     
-                    if distance < megaSettings.FOV then
-                        if megaSettings.WallCheck and not isTargetVisible(targetPart, target.Character) then
+                    if distance < _G.megaFOV then
+                        if _G.megaWallCheck and not isTargetVisible(targetPart, target.Character) then
                             continue
                         end
                         
-                        if megaSettings.PrioritizeLowestHP then
+                        if _G.megaPrioritizeLowestHP then
                             if currentHealth < lowestHealth then
                                 lowestHealth = currentHealth
                                 closestTarget = {Part = targetPart, Player = target, ScreenPos = screenPos}
@@ -1411,35 +1410,34 @@ local function getClosestTarget()
     return closestTarget
 end
 
--- Boucle de rafraîchissement
-local aimbotConnection
-aimbotConnection = runService.RenderStepped:Connect(function()
-    fovCircle.Radius = megaSettings.FOV
-    fovCircle.Visible = megaSettings.ShowFOV
-    fovCircle.Thickness = megaSettings.FOVThickness
-    fovCircle.NumSides = megaSettings.FOVSides
+-- Boucle de rendu synchrone
+runService.RenderStepped:Connect(function()
+    fovCircle.Radius = _G.megaFOV
+    fovCircle.Visible = _G.megaShowFOV
+    fovCircle.Thickness = _G.megaFOVThickness
+    fovCircle.NumSides = _G.megaFOVSides
     fovCircle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
     
-    if megaSettings.RGBFOV then
+    if _G.megaRGBFOV then
         local hue = (tick() % 4) / 4
         fovCircle.Color = Color3.fromHSV(hue, 1, 1)
     else
-        fovCircle.Color = megaSettings.FOVColor
+        fovCircle.Color = _G.megaFOVColor
     end
     
-    if megaSettings.Enabled then
+    if _G.megaAimbotEnabled then
         local targetData = getClosestTarget()
         
         if targetData then
             local target = targetData.Part
             local targetPos = target.Position
             
-            if megaSettings.Prediction > 0 and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
+            if _G.megaPrediction > 0 and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
                 local velocity = target.Parent.HumanoidRootPart.Velocity
-                targetPos = targetPos + (velocity * megaSettings.Prediction)
+                targetPos = targetPos + (velocity * (_G.megaPrediction / 1000))
             end
             
-            if megaSettings.Airshot and target.Parent and target.Parent:FindFirstChild("Humanoid") then
+            if _G.megaAirshot and target.Parent and target.Parent:FindFirstChild("Humanoid") then
                 local humanoid = target.Parent.Humanoid
                 if humanoid.FloorMaterial == Enum.Material.Air then
                     targetPos = targetPos + Vector3.new(0, 2, 0)
@@ -1447,14 +1445,14 @@ aimbotConnection = runService.RenderStepped:Connect(function()
             end
             
             local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
-            camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / megaSettings.Smoothness)
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / _G.megaSmoothness)
             
-            if megaSettings.AutoShoot then
+            if _G.megaAutoShoot then
                 local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
                 if tool and tool:FindFirstChild("RemoteFunction") then tool:Activate() end
             end
             
-            if megaSettings.TriggerBot then
+            if _G.megaTriggerBot then
                 local mousePos = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
                 local distToCenter = (mousePos - Vector2.new(targetData.ScreenPos.X, targetData.ScreenPos.Y)).Magnitude
                 if distToCenter < 50 then
@@ -1463,7 +1461,7 @@ aimbotConnection = runService.RenderStepped:Connect(function()
                 end
             end
             
-            if megaSettings.Knockback and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
+            if _G.megaKnockback and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
                 local root = target.Parent.HumanoidRootPart
                 root.Velocity = root.Velocity + (root.Position - camera.CFrame.Position).Unit * 50
             end
@@ -1471,164 +1469,169 @@ aimbotConnection = runService.RenderStepped:Connect(function()
     end
 end)
 
--- ========== CRÉATION DE L'ONGLET DANS TON MENU ==========
-local AimTab = Window:CreateTab("🎯 Custom Aimbot", 4483362458)
+-- ========== CRÉATION DE L'ONGLET INTERACTIF ==========
+local AimTab = Window:CreateTab("🎯 Configuration Aimbot", 4483362458)
 
-AimTab:CreateSection("Contrôle de Base")
+-- 1. ACTIVATION PRINCIPALE
+AimTab:CreateSection("Activation principale")
 
-local MainToggle = AimTab:CreateToggle({
-    Name = "Activer l'Aimbot",
-    CurrentValue = megaSettings.Enabled,
-    Callback = function(v) 
-        megaSettings.Enabled = v 
-    end
-})
-
--- Ajout du Keybind manquant pour l'activation rapide
-AimTab:CreateKeybind({
-    Name = "Raccourci Activation (Keybind)",
-    CurrentKeybind = "E",
-    HoldToInteract = false,
-    Flag = "ToggleKeyAimbot",
-    Callback = function()
-        MainToggle:Set(not megaSettings.Enabled)
-    end,
+AimTab:CreateToggle({
+    Name = "Enabled (Activer l'Aimbot)",
+    CurrentValue = _G.megaAimbotEnabled,
+    Callback = function(v) _G.megaAimbotEnabled = v end
 })
 
 AimTab:CreateToggle({
-    Name = "Mode Mobile (Centrer sur l'écran)",
-    CurrentValue = megaSettings.AimKeyMobile,
-    Callback = function(v) megaSettings.AimKeyMobile = v end
+    Name = "AimKeyMobile (Mode Mobile / Centré)",
+    CurrentValue = _G.megaAimKeyMobile,
+    Callback = function(v) _G.megaAimKeyMobile = v end
 })
 
--- SECTION PERSONNALISATION (CORRECTEMENT LIÉE POUR RAYFIELD)
-AimTab:CreateSection("🎛️ Personnalisation de la Visée")
+-- 2. FILTRES & PRIORITÉS
+AimTab:CreateSection("Filtres & Priorités de ciblage")
 
-AimTab:CreateSlider({
-    Name = "Taille / Rayon du FOV",
-    Min = 10,
-    Max = 800,
-    CurrentValue = 180,
-    Flag = "AimbotFOVSize",
-    Callback = function(Value) 
-        megaSettings.FOV = tonumber(Value)
-    end
+AimTab:CreateToggle({
+    Name = "WallCheck (Vérification des murs)",
+    CurrentValue = _G.megaWallCheck,
+    Callback = function(v) _G.megaWallCheck = v end
 })
 
-AimTab:CreateSlider({
-    Name = "Fluidité (Smoothness)",
-    Min = 1,
-    Max = 30,
-    CurrentValue = 5,
-    Flag = "AimbotSmooth",
-    Callback = function(Value) 
-        megaSettings.Smoothness = tonumber(Value)
-    end
+AimTab:CreateToggle({
+    Name = "TeamCheck (Ignorer l'équipe)",
+    CurrentValue = _G.megaTeamCheck,
+    Callback = function(v) _G.megaTeamCheck = v end
 })
 
-AimTab:CreateSlider({
-    Name = "Ajustement de la Prédiction",
-    Min = 0,
-    Max = 500,
-    CurrentValue = 165,
-    Flag = "AimbotPredict",
-    Callback = function(Value) 
-        megaSettings.Prediction = tonumber(Value) / 1000
-    end
+AimTab:CreateToggle({
+    Name = "IgnoreFriends (Ignorer les Amis)",
+    CurrentValue = _G.megaIgnoreFriends,
+    Callback = function(v) _G.megaIgnoreFriends = v end
 })
 
-AimTab:CreateDropdown({
-    Name = "Partie du Corps à Cibler",
-    Options = {"Head", "Torso", "HumanoidRootPart", "Random"},
-    CurrentValue = "Head",
-    Flag = "AimbotTargetPart",
-    Callback = function(v) megaSettings.TargetPart = v end
-})
-
--- AJOUT DES CHOIX DE PRIORITÉ EXCLUSIFS DE TON SCRIPT ORIGINAL
 local ClosestToggle, LowHPToggle
-AimTab:CreateSection("👑 Préférences de Ciblage")
-
 ClosestToggle = AimTab:CreateToggle({
-    Name = "Cible la plus proche du viseur",
-    CurrentValue = megaSettings.PrioritizeClosest,
+    Name = "PrioritizeClosest (Cible la plus proche)",
+    CurrentValue = _G.megaPrioritizeClosest,
     Callback = function(v)
         if v then
-            megaSettings.PrioritizeClosest = true
-            megaSettings.PrioritizeLowestHP = false
+            _G.megaPrioritizeClosest = true
+            _G.megaPrioritizeLowestHP = false
             if LowHPToggle then LowHPToggle:Set(false) end
         end
     end
 })
 
 LowHPToggle = AimTab:CreateToggle({
-    Name = "Cible avec le moins de points de vie",
-    CurrentValue = megaSettings.PrioritizeLowestHP,
+    Name = "PrioritizeLowestHP (Cible bas PV)",
+    CurrentValue = _G.megaPrioritizeLowestHP,
     Callback = function(v)
         if v then
-            megaSettings.PrioritizeLowestHP = true
-            megaSettings.PrioritizeClosest = false
+            _G.megaPrioritizeLowestHP = true
+            _G.megaPrioritizeClosest = false
             if ClosestToggle then ClosestToggle:Set(false) end
         end
     end
 })
 
--- SECTION PERSONNALISATION DU VISUEL (COULEURS / STYLE)
-AimTab:CreateSection("🎨 Personnalisation Visuelle du FOV")
+-- 3. AJUSTEMENT PHYSIQUE DE LA VISÉE
+AimTab:CreateSection("🎛️ Ajustement de la Visée")
+
+AimTab:CreateDropdown({
+    Name = "TargetPart (Partie du corps ciblée)",
+    Options = {"Head", "Torso", "HumanoidRootPart", "Random"},
+    CurrentValue = _G.megaTargetPart,
+    Callback = function(v) _G.megaTargetPart = v end
+})
+
+AimTab:CreateSlider({
+    Name = "Smoothness (Fluidité de visée)",
+    Range = {1, 30},
+    Increment = 1,
+    Suffix = " Degré",
+    CurrentValue = _G.megaSmoothness,
+    Callback = function(v) _G.megaSmoothness = v end
+})
+
+AimTab:CreateSlider({
+    Name = "Prediction (Anticipation temporelle)",
+    Range = {0, 500},
+    Increment = 5,
+    Suffix = " ms",
+    CurrentValue = _G.megaPrediction,
+    Callback = function(v) _G.megaPrediction = v end
+})
+
+AimTab:CreateSlider({
+    Name = "FOV (Taille du rayon de zone)",
+    Range = {10, 800},
+    Increment = 10,
+    Suffix = " px",
+    CurrentValue = _G.megaFOV,
+    Callback = function(v) _G.megaFOV = v end
+})
+
+-- 4. VISUEL ET STYLE DU FOV
+AimTab:CreateSection("🎨 Style visuel du FOV")
 
 AimTab:CreateToggle({
-    Name = "Afficher le cercle de FOV",
-    CurrentValue = megaSettings.ShowFOV,
-    Callback = function(v) megaSettings.ShowFOV = v end
+    Name = "ShowFOV (Afficher le cercle)",
+    CurrentValue = _G.megaShowFOV,
+    Callback = function(v) _G.megaShowFOV = v end
 })
 
 AimTab:CreateToggle({
-    Name = "Activer l'Effet Rainbow RGB (Arc-en-ciel)",
-    CurrentValue = megaSettings.RGBFOV,
-    Callback = function(v) megaSettings.RGBFOV = v end
+    Name = "RGBFOV (Mode Arc-en-ciel)",
+    CurrentValue = _G.megaRGBFOV,
+    Callback = function(v) _G.megaRGBFOV = v end
 })
 
 AimTab:CreateColorPicker({
-    Name = "Changer la Couleur Statique du FOV",
-    Color = megaSettings.FOVColor,
-    Callback = function(customColor) 
-        megaSettings.FOVColor = customColor 
-    end
+    Name = "FOVColor (Couleur du cercle)",
+    Color = _G.megaFOVColor,
+    Callback = function(customColor) _G.megaFOVColor = customColor end
 })
 
 AimTab:CreateSlider({
-    Name = "Épaisseur du trait du FOV",
-    Min = 1,
-    Max = 10,
-    CurrentValue = 2,
-    Flag = "AimbotFOVThickness",
-    Callback = function(Value) 
-        megaSettings.FOVThickness = tonumber(Value)
-    end
+    Name = "FOVThickness (Épaisseur du trait)",
+    Range = {1, 10},
+    Increment = 1,
+    Suffix = " px",
+    CurrentValue = _G.megaFOVThickness,
+    Callback = function(v) _G.megaFOVThickness = v end
 })
 
 AimTab:CreateSlider({
-    Name = "Qualité de forme du cercle (NumSides)",
-    Min = 16,
-    Max = 128,
-    CurrentValue = 64,
-    Flag = "AimbotFOVSides",
-    Callback = function(Value) 
-        megaSettings.FOVSides = tonumber(Value)
-    end
+    Name = "FOVSides (Forme/Netteté du cercle)",
+    Range = {16, 128},
+    Increment = 4,
+    Suffix = " Côtés",
+    CurrentValue = _G.megaFOVSides,
+    Callback = function(v) _G.megaFOVSides = v end
 })
 
--- SECTION SÉCURITÉ ET FILTRES
-AimTab:CreateSection("🛡️ Filtres de Sécurité")
+-- 5. OPTIONS AVANCÉES
+AimTab:CreateSection("⚡ Options d'Attaque Évoluées")
 
-AimTab:CreateToggle({Name = "Wall Check (Ne vise pas à travers les murs)", CurrentValue = megaSettings.WallCheck, Callback = function(v) megaSettings.WallCheck = v end})
-AimTab:CreateToggle({Name = "Ignorer mon Équipe (Team Check)", CurrentValue = megaSettings.TeamCheck, Callback = function(v) megaSettings.TeamCheck = v end})
-AimTab:CreateToggle({Name = "Ignorer ma liste d'Amis", CurrentValue = megaSettings.IgnoreFriends, Callback = function(v) megaSettings.IgnoreFriends = v end})
+AimTab:CreateToggle({
+    Name = "AutoShoot (Tir Automatique)",
+    CurrentValue = _G.megaAutoShoot,
+    Callback = function(v) _G.megaAutoShoot = v end
+})
 
--- SECTION EXTRAS
-AimTab:CreateSection("⚡ Options de Combat Avancées")
+AimTab:CreateToggle({
+    Name = "TriggerBot (Tir au contact)",
+    CurrentValue = _G.megaTriggerBot,
+    Callback = function(v) _G.megaTriggerBot = v end
+})
 
-AimTab:CreateToggle({Name = "Auto Shoot (Tir Automatique)", CurrentValue = megaSettings.AutoShoot, Callback = function(v) megaSettings.AutoShoot = v end})
-AimTab:CreateToggle({Name = "Trigger Bot", CurrentValue = megaSettings.TriggerBot, Callback = function(v) megaSettings.TriggerBot = v end})
-AimTab:CreateToggle({Name = "Airshot Assist (Anticipe les sauts)", CurrentValue = megaSettings.Airshot, Callback = function(v) megaSettings.Airshot = v end})
-AimTab:CreateToggle({Name = "Knockback Répercuté (Force physique)", CurrentValue = megaSettings.Knockback, Callback = function(v) megaSettings.Knockback = v end})
+AimTab:CreateToggle({
+    Name = "Airshot (Aide cibles en l'air)",
+    CurrentValue = _G.megaAirshot,
+    Callback = function(v) _G.megaAirshot = v end
+})
+
+AimTab:CreateToggle({
+    Name = "Knockback (Recul provoqué)",
+    CurrentValue = _G.megaKnockback,
+    Callback = function(v) _G.megaKnockback = v end
+})
