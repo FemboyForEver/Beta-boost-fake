@@ -1313,17 +1313,16 @@ local megaSettings = {
     PrioritizeClosest = true,
     PrioritizeLowestHP = false,
     
-    -- Paramètres modifiables via l'interface
     TargetPart = "Head",
     Smoothness = 5,
     Prediction = 0.165,
     FOV = 180,
     
     ShowFOV = true,
-    RGBFOV = false, -- Désactivé par défaut pour pouvoir changer la couleur manuellement
+    RGBFOV = false, 
     FOVColor = Color3.fromRGB(255, 50, 50),
-    FOVSides = 64,   -- Ajuste la qualité du cercle
-    FOVThickness = 2, -- Épaisseur de la ligne du FOV
+    FOVSides = 64,   
+    FOVThickness = 2, 
     
     AutoShoot = false,
     TriggerBot = false,
@@ -1413,8 +1412,8 @@ local function getClosestTarget()
 end
 
 -- Boucle de rafraîchissement
-runService.RenderStepped:Connect(function()
-    -- Mise à jour dynamique du FOV personnalisé
+local aimbotConnection
+aimbotConnection = runService.RenderStepped:Connect(function()
     fovCircle.Radius = megaSettings.FOV
     fovCircle.Visible = megaSettings.ShowFOV
     fovCircle.Thickness = megaSettings.FOVThickness
@@ -1435,13 +1434,11 @@ runService.RenderStepped:Connect(function()
             local target = targetData.Part
             local targetPos = target.Position
             
-            -- Système de Prédiction dynamique modifié via le menu
             if megaSettings.Prediction > 0 and target.Parent and target.Parent:FindFirstChild("HumanoidRootPart") then
                 local velocity = target.Parent.HumanoidRootPart.Velocity
                 targetPos = targetPos + (velocity * megaSettings.Prediction)
             end
             
-            -- Airshot assist
             if megaSettings.Airshot and target.Parent and target.Parent:FindFirstChild("Humanoid") then
                 local humanoid = target.Parent.Humanoid
                 if humanoid.FloorMaterial == Enum.Material.Air then
@@ -1449,11 +1446,9 @@ runService.RenderStepped:Connect(function()
                 end
             end
             
-            -- Fluidité de visée (Smoothness modifiable)
             local targetCFrame = CFrame.new(camera.CFrame.Position, targetPos)
             camera.CFrame = camera.CFrame:Lerp(targetCFrame, 1 / megaSettings.Smoothness)
             
-            -- Gestion des tirs automatiques et extras
             if megaSettings.AutoShoot then
                 local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
                 if tool and tool:FindFirstChild("RemoteFunction") then tool:Activate() end
@@ -1481,54 +1476,101 @@ local AimTab = Window:CreateTab("🎯 Custom Aimbot", 4483362458)
 
 AimTab:CreateSection("Contrôle de Base")
 
-AimTab:CreateToggle({
+local MainToggle = AimTab:CreateToggle({
     Name = "Activer l'Aimbot",
     CurrentValue = megaSettings.Enabled,
-    Callback = function(v) megaSettings.Enabled = v end
+    Callback = function(v) 
+        megaSettings.Enabled = v 
+    end
+})
+
+-- Ajout du Keybind manquant pour l'activation rapide
+AimTab:CreateKeybind({
+    Name = "Raccourci Activation (Keybind)",
+    CurrentKeybind = "E",
+    HoldToInteract = false,
+    Flag = "ToggleKeyAimbot",
+    Callback = function()
+        MainToggle:Set(not megaSettings.Enabled)
+    end,
 })
 
 AimTab:CreateToggle({
-    Name = "Mode Mobile (Centrer l'Aimbot)",
+    Name = "Mode Mobile (Centrer sur l'écran)",
     CurrentValue = megaSettings.AimKeyMobile,
     Callback = function(v) megaSettings.AimKeyMobile = v end
 })
 
--- SECTION PERSONNALISATION GÉOMÉTRIQUE & PHYSIQUE
+-- SECTION PERSONNALISATION (CORRECTEMENT LIÉE POUR RAYFIELD)
 AimTab:CreateSection("🎛️ Personnalisation de la Visée")
 
 AimTab:CreateSlider({
     Name = "Taille / Rayon du FOV",
     Min = 10,
     Max = 800,
-    CurrentValue = megaSettings.FOV,
+    CurrentValue = 180,
     Flag = "AimbotFOVSize",
-    Callback = function(v) megaSettings.FOV = v end
+    Callback = function(Value) 
+        megaSettings.FOV = tonumber(Value)
+    end
 })
 
 AimTab:CreateSlider({
-    Name = "Fluidité (Smoothness) [Plus élevé = Plus lent/Lisse]",
+    Name = "Fluidité (Smoothness)",
     Min = 1,
     Max = 30,
-    CurrentValue = megaSettings.Smoothness,
+    CurrentValue = 5,
     Flag = "AimbotSmooth",
-    Callback = function(v) megaSettings.Smoothness = v end
+    Callback = function(Value) 
+        megaSettings.Smoothness = tonumber(Value)
+    end
 })
 
 AimTab:CreateSlider({
-    Name = "Ajustement de la Prédiction (Vitesse des cibles)",
+    Name = "Ajustement de la Prédiction",
     Min = 0,
     Max = 500,
-    CurrentValue = math.floor(megaSettings.Prediction * 1000),
+    CurrentValue = 165,
     Flag = "AimbotPredict",
-    Callback = function(v) megaSettings.Prediction = v / 1000 end
+    Callback = function(Value) 
+        megaSettings.Prediction = tonumber(Value) / 1000
+    end
 })
 
 AimTab:CreateDropdown({
     Name = "Partie du Corps à Cibler",
     Options = {"Head", "Torso", "HumanoidRootPart", "Random"},
-    CurrentValue = megaSettings.TargetPart,
+    CurrentValue = "Head",
     Flag = "AimbotTargetPart",
     Callback = function(v) megaSettings.TargetPart = v end
+})
+
+-- AJOUT DES CHOIX DE PRIORITÉ EXCLUSIFS DE TON SCRIPT ORIGINAL
+local ClosestToggle, LowHPToggle
+AimTab:CreateSection("👑 Préférences de Ciblage")
+
+ClosestToggle = AimTab:CreateToggle({
+    Name = "Cible la plus proche du viseur",
+    CurrentValue = megaSettings.PrioritizeClosest,
+    Callback = function(v)
+        if v then
+            megaSettings.PrioritizeClosest = true
+            megaSettings.PrioritizeLowestHP = false
+            if LowHPToggle then LowHPToggle:Set(false) end
+        end
+    end
+})
+
+LowHPToggle = AimTab:CreateToggle({
+    Name = "Cible avec le moins de points de vie",
+    CurrentValue = megaSettings.PrioritizeLowestHP,
+    Callback = function(v)
+        if v then
+            megaSettings.PrioritizeLowestHP = true
+            megaSettings.PrioritizeClosest = false
+            if ClosestToggle then ClosestToggle:Set(false) end
+        end
+    end
 })
 
 -- SECTION PERSONNALISATION DU VISUEL (COULEURS / STYLE)
@@ -1558,31 +1600,35 @@ AimTab:CreateSlider({
     Name = "Épaisseur du trait du FOV",
     Min = 1,
     Max = 10,
-    CurrentValue = megaSettings.FOVThickness,
+    CurrentValue = 2,
     Flag = "AimbotFOVThickness",
-    Callback = function(v) megaSettings.FOVThickness = v end
+    Callback = function(Value) 
+        megaSettings.FOVThickness = tonumber(Value)
+    end
 })
 
 AimTab:CreateSlider({
     Name = "Qualité de forme du cercle (NumSides)",
     Min = 16,
     Max = 128,
-    CurrentValue = megaSettings.FOVSides,
+    CurrentValue = 64,
     Flag = "AimbotFOVSides",
-    Callback = function(v) megaSettings.FOVSides = v end
+    Callback = function(Value) 
+        megaSettings.FOVSides = tonumber(Value)
+    end
 })
 
 -- SECTION SÉCURITÉ ET FILTRES
 AimTab:CreateSection("🛡️ Filtres de Sécurité")
 
-AimTab:CreateToggle({Name = "Wall Check (Ne vise pas derrière les murs)", CurrentValue = megaSettings.WallCheck, Callback = function(v) megaSettings.WallCheck = v end})
+AimTab:CreateToggle({Name = "Wall Check (Ne vise pas à travers les murs)", CurrentValue = megaSettings.WallCheck, Callback = function(v) megaSettings.WallCheck = v end})
 AimTab:CreateToggle({Name = "Ignorer mon Équipe (Team Check)", CurrentValue = megaSettings.TeamCheck, Callback = function(v) megaSettings.TeamCheck = v end})
 AimTab:CreateToggle({Name = "Ignorer ma liste d'Amis", CurrentValue = megaSettings.IgnoreFriends, Callback = function(v) megaSettings.IgnoreFriends = v end})
 
 -- SECTION EXTRAS
 AimTab:CreateSection("⚡ Options de Combat Avancées")
 
-AimTab:CreateToggle({Name = "Auto Shoot (Tir Auto si verrouillé)", CurrentValue = megaSettings.AutoShoot, Callback = function(v) megaSettings.AutoShoot = v end})
-AimTab:CreateToggle({Name = "Trigger Bot (Tir automatique instantané)", CurrentValue = megaSettings.TriggerBot, Callback = function(v) megaSettings.TriggerBot = v end})
+AimTab:CreateToggle({Name = "Auto Shoot (Tir Automatique)", CurrentValue = megaSettings.AutoShoot, Callback = function(v) megaSettings.AutoShoot = v end})
+AimTab:CreateToggle({Name = "Trigger Bot", CurrentValue = megaSettings.TriggerBot, Callback = function(v) megaSettings.TriggerBot = v end})
 AimTab:CreateToggle({Name = "Airshot Assist (Anticipe les sauts)", CurrentValue = megaSettings.Airshot, Callback = function(v) megaSettings.Airshot = v end})
 AimTab:CreateToggle({Name = "Knockback Répercuté (Force physique)", CurrentValue = megaSettings.Knockback, Callback = function(v) megaSettings.Knockback = v end})
