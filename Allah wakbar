@@ -1,4 +1,3 @@
--- 🚗 Menu by Shido (Rayfield Adaptation v2 - PC & Gamepad)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -110,7 +109,7 @@ end)
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-	Name = "Shido Vehicle Menu",
+	Name = "SHIDOOOO",
 	LoadingTitle = "Chargement...",
 	LoadingSubtitle = "by Shido",
 	ConfigurationSaving = { Enabled = true, FolderName = "ShidoMenu", FileName = "Config" },
@@ -125,7 +124,7 @@ local SpeedPage = Window:CreateTab("Speed", 4483362458)
 
 -- ========= SLIDERS =========
 BoostPage:CreateSlider({
-	Name = "Puissance Boost",
+	Name = "Vehicule Boost",
 	Range = {0,100},
 	Increment = 1,
 	Suffix = "%",
@@ -134,7 +133,7 @@ BoostPage:CreateSlider({
 })
 
 BrakePage:CreateSlider({
-	Name = "Puissance Frein",
+	Name = "brake power",
 	Range = {0,100},
 	Increment = 1,
 	Suffix = "%",
@@ -143,7 +142,7 @@ BrakePage:CreateSlider({
 })
 
 JumpPage:CreateSlider({
-	Name = "Puissance Jump",
+	Name = "vehicule jump",
 	Range = {0,200},
 	Increment = 1,
 	Suffix = " stud",
@@ -152,7 +151,7 @@ JumpPage:CreateSlider({
 })
 
 SpeedPage:CreateSlider({
-	Name = "Vitesse Max",
+	Name = "Max vehicule speed",
 	Range = {100,2000},
 	Increment = 50,
 	Suffix = " MPH",
@@ -161,7 +160,7 @@ SpeedPage:CreateSlider({
 })
 
 SpeedPage:CreateSlider({
-	Name = "Accélération",
+	Name = "vrum vrum",
 	Range = {50,1000},
 	Increment = 50,
 	Suffix = " MPH/s",
@@ -349,7 +348,7 @@ end)
 local DirBoostPage = Window:CreateTab("Boost Directionnel", 4483362458)
 
 DirBoostPage:CreateSlider({
-	Name = "Puissance Boost Directionnel",
+	Name = "fly boost (directionnel)",
 	Range = {50,500},
 	Increment = 10,
 	Suffix = " Force",
@@ -404,7 +403,7 @@ local State = {
 		Name = true,
 		Health = true,
 		Distance = true,
-		Range = 484848,
+		Range = 500000,
 		Color = Color3.fromRGB(255,170,60),
 		Transparency = 0.7,
 		ShowLookLine = true,
@@ -639,7 +638,7 @@ end)
 local ESPPage = Window:CreateTab("ESP Joueurs", 4483362458)
 
 ESPPage:CreateToggle({
-	Name = "Activer l'ESP",
+	Name = "ESP",
 	CurrentValue = State.ESP.Enabled,
 	Callback = function(v) State.ESP.Enabled = v end
 })
@@ -651,31 +650,31 @@ ESPPage:CreateToggle({
 })
 
 ESPPage:CreateToggle({
-	Name = "Afficher les Noms",
+	Name = "Show name",
 	CurrentValue = State.ESP.Name,
 	Callback = function(v) State.ESP.Name = v end
 })
 
 ESPPage:CreateToggle({
-	Name = "Afficher la Vie",
+	Name = "Show life",
 	CurrentValue = State.ESP.Health,
 	Callback = function(v) State.ESP.Health = v end
 })
 
 ESPPage:CreateToggle({
-	Name = "Afficher la Distance",
+	Name = "Show range",
 	CurrentValue = State.ESP.Distance,
 	Callback = function(v) State.ESP.Distance = v end
 })
 
 ESPPage:CreateToggle({
-	Name = "Ligne de Regard (Look Line)",
+	Name = "Look Line",
 	CurrentValue = State.ESP.ShowLookLine,
 	Callback = function(v) State.ESP.ShowLookLine = v end
 })
 
 ESPPage:CreateSlider({
-	Name = "Distance Max de l'ESP",
+	Name = "range ESP",
 	Range = {100, 99999999},
 	Increment = 100,
 	Suffix = "m",
@@ -693,7 +692,7 @@ ESPPage:CreateSlider({
 })
 
 ESPPage:CreateColorPicker({
-	Name = "Couleur de l'ESP",
+	Name = "set ur color for ESP",
 	Color = State.ESP.Color,
 	Callback = function(v) State.ESP.Color = v end
 })
@@ -908,7 +907,7 @@ local FlyToggle = FlyTab:CreateToggle({
 })
 
 FlyTab:CreateToggle({
-	Name = "FwF (Voler sans Siège / Véhicule)",
+	Name = "FwF simple fly no vehicule",
 	CurrentValue = false,
 	Callback = function(state)
 		flightWithoutFlyEnabled = state
@@ -923,7 +922,7 @@ FlyTab:CreateToggle({
 })
 
 FlyTab:CreateSlider({
-	Name = "Multiplicateur de Vitesse",
+	Name = "speed vehicule fly",
 	Range = {1, 50},
 	Increment = 1,
 	Suffix = "x",
@@ -937,7 +936,7 @@ local ALToggle
 local PitchToggle
 
 ALToggle = FlyTab:CreateToggle({
-	Name = "Anti-Lock (Conserver direction du siège)",
+	Name = "Anti-Lock",
 	CurrentValue = false,
 	Callback = function(state)
 		isAntiLockOn = state
@@ -949,7 +948,7 @@ ALToggle = FlyTab:CreateToggle({
 })
 
 PitchToggle = FlyTab:CreateToggle({
-	Name = "Mode Pitch (Suivre axe incliné de la caméra)",
+	Name = "Mode Pitch",
 	CurrentValue = false,
 	Callback = function(state)
 		if isAntiLockOn then
@@ -1104,7 +1103,7 @@ NoclipToggle = NoclipPage:CreateToggle({
 				noclipConnection = nil
 			end
 			disableTotalNoclip()
-			Rayfield:Notify({Title = "Noclip", Content = "Noclip Désactivé !", Duration = 2})
+			Rayfield:Notify({Title = "Noclip", Content = "UnNoclip", Duration = 2})
 		end
 	end
 })
@@ -1118,108 +1117,6 @@ NoclipPage:CreateKeybind({
 	Callback = function()
 		if NoclipToggle then
 			NoclipToggle:Set(not wallNoclipEnabled)
-		end
-	end,
-})
--- ========= EXTENSION : ONGLET JESUS DRIVE (ROULER SUR L'EAU) =========
-
-local driveOnWaterEnabled = false
-local waterPlatform = nil
-local waterLoopConnection = nil
-
--- Détection automatique de la hauteur de l'eau
-local function getWaterLevel()
-	local terrain = workspace:FindFirstChildOfClass("Terrain")
-	if terrain then
-		return 0 -- Hauteur standard de l'eau sur Roblox (Ajustable si besoin)
-	end
-	return 0
-end
-
--- Logique physique pour déplacer la plateforme sous les roues
-local function handleWaterDriving()
-	local seat = GetSeat()
-	if not seat or not seat:IsA("VehicleSeat") then 
-		if waterPlatform then waterPlatform.Size = Vector3.new(0,0,0) end
-		return 
-	end
-
-	local vehicleModel = seat:FindFirstAncestorOfClass("Model") or seat.Parent
-	if not vehicleModel then return end
-
-	local carPos = seat.Position
-	local waterHeight = getWaterLevel()
-
-	-- Si le véhicule s'approche ou touche l'eau
-	if carPos.Y <= waterHeight + 5 then
-		if not waterPlatform or not waterPlatform.Parent then
-			waterPlatform = Instance.new("Part")
-			waterPlatform.Name = "JesusDrive_Platform"
-			waterPlatform.Size = Vector3.new(150, 1, 150)
-			waterPlatform.Transparency = 1 -- Invisible
-			waterPlatform.Values = "SmoothPlastic"
-			waterPlatform.Anchored = true
-			waterPlatform.CanCollide = true
-			waterPlatform.Parent = workspace
-		end
-		
-		-- Positionne la plaque parfaitement sous la voiture au niveau de la surface
-		waterPlatform.CFrame = CFrame.new(carPos.X, waterHeight - 0.5, carPos.Z)
-	else
-		-- Si on quitte l'eau, on nettoie pour éviter les murs invisibles sur terre
-		if waterPlatform then
-			waterPlatform:Destroy()
-			waterPlatform = nil
-		end
-	end
-end
-
--- ========= CRÉATION DE L'ONGLET RAYFIELD DÉDIÉ =========
-local WaterTab = Window:CreateTab("Jesus Drive", 4483362458)
-
-local WaterToggle = nil
-
-WaterToggle = WaterTab:CreateToggle({
-	Name = "Activer le Mode Jésus (Rouler sur l'Eau)",
-	CurrentValue = false,
-	Callback = function(value)
-		driveOnWaterEnabled = value
-		
-		if driveOnWaterEnabled then
-			waterLoopConnection = RunService.Heartbeat:Connect(handleWaterDriving)
-			Rayfield:Notify({
-				Title = "Jesus Drive",
-				Content = "Vous pouvez maintenant rouler sur l'eau !",
-				Duration = 2
-			})
-		else
-			if waterLoopConnection then
-				waterLoopConnection:Disconnect()
-				waterLoopConnection = nil
-			end
-			if waterPlatform then
-				waterPlatform:Destroy()
-				waterPlatform = nil
-			end
-			Rayfield:Notify({
-				Title = "Jesus Drive",
-				Content = "Mode désactivé.",
-				Duration = 2
-			})
-		end
-	end
-})
-
--- Raccourci Clavier (Keybind) intégré dans l'onglet
-WaterTab:CreateKeybind({
-	Name = "Raccourci Clavier Jésus Mode",
-	CurrentKeybind = "J", -- Touche par défaut (Modifiable en cliquant dessus dans le menu)
-	HoldToInteract = false,
-	Flag = "JesusKeybind",
-	Callback = function()
-		if WaterToggle then
-			-- Inverse l'état du bouton à chaque appui sur la touche
-			WaterToggle:Set(not driveOnWaterEnabled)
 		end
 	end,
 })
