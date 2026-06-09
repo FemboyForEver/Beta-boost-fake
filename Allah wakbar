@@ -394,6 +394,13 @@ UserInputService.InputEnded:Connect(function(input)
 		StopFlyBoost()
 	end
 end)
+-- ========= SERVICES REQUIS =========
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
 -- ========= EXTENSION : ESP JOUEURS (ADAPTATION RAYFIELD) =========
 
 local State = {
@@ -404,10 +411,13 @@ local State = {
 		Health = true,
 		Distance = true,
 		Range = 500000,
-		Color = Color3.fromRGB(255,170,60),
+		Color = Color3.fromRGB(255,170,60), -- Couleur par défaut (ex: pour la LookLine)
 		Transparency = 0.7,
 		ShowLookLine = true,
-		LookLineLength = 15
+		LookLineLength = 15,
+		-- Couleurs automatiques (Totalement invisible pour le joueur, calculé en arrière-plan)
+		VisibleColor = Color3.fromRGB(0, 255, 0), -- VERT si tu peux le voir
+		HiddenColor = Color3.fromRGB(255, 0, 0)   -- ROUGE si cache derrière un mur
 	},
 	TrackedCharacters = {}
 }
@@ -422,6 +432,28 @@ local function cleanupESP(character)
 		data.Visuals:Destroy()
 	end
 	State.TrackedCharacters[character] = nil
+end
+
+-- Cette fonction calcule mathématiquement si un mur bloque la vue (sans rien afficher)
+local function checkVisibility(targetCharacter, targetRoot)
+	if not LocalPlayer.Character or not Camera then return false end
+	
+	local rayOrigin = Camera.CFrame.Position
+	local rayDirection = targetRoot.Position - rayOrigin
+	
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, targetCharacter}
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.IgnoreWater = true
+	
+	local raycastResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+	
+	-- Si aucun mur n'est touché = Visible
+	if not raycastResult then
+		return true
+	end
+	
+	return false
 end
 
 local function createVisualForCharacter(character, player)
@@ -532,7 +564,7 @@ local function updateLookLine(character, lookLineFolder)
 			part.Transparency = 0.3 + (fade * 0.7)
 			local scale = 1 - (fade * 0.5)
 			part.Size = Vector3.new(0.15 * scale, 0.15 * scale, 0.15 * scale)
-			part.Color = State.ESP.Color
+			part.Color = State.ESP.Color -- Reste sur la couleur fixe définie dans l'UI
 		end
 	end
 end
@@ -541,6 +573,15 @@ local function updateVisual(character)
 	local data = State.TrackedCharacters[character]
 	if not data or not data.Player then return end
 
+	local root = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
+	
+	-- Détermination de la couleur (Vert si visible, Rouge si caché)
+	local statusColor = State.ESP.Color
+	if State.ESP.Enabled and root then
+		local isVisible = checkVisibility(character, root)
+		statusColor = isVisible and State.ESP.VisibleColor or State.ESP.HiddenColor
+	end
+
 	if not State.ESP.Enabled then
 		data.Highlight.Enabled = false
 		data.Billboard.Enabled = false
@@ -548,7 +589,6 @@ local function updateVisual(character)
 		return
 	end
 
-	local root = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")
 	if not root then return end
 
 	local myCharacter = LocalPlayer.Character
@@ -564,9 +604,10 @@ local function updateVisual(character)
 		end
 	end
 
+	-- Application des couleurs dynamiques (Uniquement visuel ESP)
 	data.Highlight.Enabled = State.ESP.Glow
-	data.Highlight.FillColor = State.ESP.Color
-	data.Highlight.OutlineColor = State.ESP.Color
+	data.Highlight.FillColor = statusColor
+	data.Highlight.OutlineColor = statusColor
 	data.Highlight.FillTransparency = State.ESP.Transparency
 
 	data.Billboard.Enabled = true
@@ -574,20 +615,21 @@ local function updateVisual(character)
 
 	data.NameLabel.Visible = State.ESP.Name
 	data.NameLabel.Text = data.Player.Name
-	data.NameLabel.TextColor3 = State.ESP.Color
+	data.NameLabel.TextColor3 = statusColor
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		local hpPercent = humanoid.Health / math.max(humanoid.MaxHealth, 1)
 		data.HealthLabel.Visible = State.ESP.Health
 		data.HealthLabel.Text = "HP: " .. math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
-		data.HealthLabel.TextColor3 = Color3.new(1 - hpPercent, hpPercent, 0)
+		data.HealthLabel.TextColor3 = Color3.new(1 - hpPercent, hpPercent, 0) -- Barre de vie classique (Vert -> Rouge)
 	else
 		data.HealthLabel.Visible = false
 	end
 
 	data.DistanceLabel.Visible = State.ESP.Distance
 	data.DistanceLabel.Text = math.floor(distance) .. "m"
+	data.DistanceLabel.TextColor3 = statusColor
 
 	updateLookLine(character, data.LookLineFolder)
 end
@@ -692,7 +734,7 @@ ESPPage:CreateSlider({
 })
 
 ESPPage:CreateColorPicker({
-	Name = "set ur color for ESP",
+	Name = "Couleur LookLine",
 	Color = State.ESP.Color,
 	Callback = function(v) State.ESP.Color = v end
 })
