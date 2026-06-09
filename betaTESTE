@@ -1613,7 +1613,7 @@ AimTab:CreateSlider({
 AimTab:CreateSection("extrat option sa peut ne pas fonctionner")
 
 AimTab:CreateToggle({
-    Name = "AutoShoot (Tir Automatique)",
+    Name = "AutoShoot",
     CurrentValue = _G.megaAutoShoot,
     Callback = function(v) _G.megaAutoShoot = v end
 })
