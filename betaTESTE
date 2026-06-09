@@ -1470,7 +1470,7 @@ runService.RenderStepped:Connect(function()
 end)
 
 -- ========== CRÉATION DE L'ONGLET INTERACTIF ==========
-local AimTab = Window:CreateTab("🎯 Configuration Aimbot", 4483362458)
+local AimTab = Window:CreateTab("aimbot by shido", 4483362458)
 
 -- 1. ACTIVATION PRINCIPALE
 AimTab:CreateSection("Activation principale")
@@ -1491,19 +1491,19 @@ AimTab:CreateToggle({
 AimTab:CreateSection("Filtres & Priorités de ciblage")
 
 AimTab:CreateToggle({
-    Name = "WallCheck (Vérification des murs)",
+    Name = "WallCheck",
     CurrentValue = _G.megaWallCheck,
     Callback = function(v) _G.megaWallCheck = v end
 })
 
 AimTab:CreateToggle({
-    Name = "TeamCheck (Ignorer l'équipe)",
+    Name = "TeamCheck",
     CurrentValue = _G.megaTeamCheck,
     Callback = function(v) _G.megaTeamCheck = v end
 })
 
 AimTab:CreateToggle({
-    Name = "IgnoreFriends (Ignorer les Amis)",
+    Name = "IgnoreFriends",
     CurrentValue = _G.megaIgnoreFriends,
     Callback = function(v) _G.megaIgnoreFriends = v end
 })
@@ -1522,7 +1522,7 @@ ClosestToggle = AimTab:CreateToggle({
 })
 
 LowHPToggle = AimTab:CreateToggle({
-    Name = "PrioritizeLowestHP (Cible bas PV)",
+    Name = "PrioritizeLowestHP",
     CurrentValue = _G.megaPrioritizeLowestHP,
     Callback = function(v)
         if v then
@@ -1534,17 +1534,17 @@ LowHPToggle = AimTab:CreateToggle({
 })
 
 -- 3. AJUSTEMENT PHYSIQUE DE LA VISÉE
-AimTab:CreateSection("🎛️ Ajustement de la Visée")
+AimTab:CreateSection("configuration aimbot")
 
 AimTab:CreateDropdown({
-    Name = "TargetPart (Partie du corps ciblée)",
+    Name = "TargetPart",
     Options = {"Head", "Torso", "HumanoidRootPart", "Random"},
     CurrentValue = _G.megaTargetPart,
     Callback = function(v) _G.megaTargetPart = v end
 })
 
 AimTab:CreateSlider({
-    Name = "Smoothness (Fluidité de visée)",
+    Name = "Smoothness",
     Range = {1, 30},
     Increment = 1,
     Suffix = " Degré",
@@ -1553,16 +1553,16 @@ AimTab:CreateSlider({
 })
 
 AimTab:CreateSlider({
-    Name = "Prediction (Anticipation temporelle)",
+    Name = "Prediction",
     Range = {0, 500},
-    Increment = 5,
+    Increment = 0,
     Suffix = " ms",
     CurrentValue = _G.megaPrediction,
     Callback = function(v) _G.megaPrediction = v end
 })
 
 AimTab:CreateSlider({
-    Name = "FOV (Taille du rayon de zone)",
+    Name = "Taille of FOV",
     Range = {10, 800},
     Increment = 10,
     Suffix = " px",
@@ -1571,7 +1571,7 @@ AimTab:CreateSlider({
 })
 
 -- 4. VISUEL ET STYLE DU FOV
-AimTab:CreateSection("🎨 Style visuel du FOV")
+AimTab:CreateSection("configuration visual/color FOV")
 
 AimTab:CreateToggle({
     Name = "ShowFOV (Afficher le cercle)",
@@ -1580,19 +1580,19 @@ AimTab:CreateToggle({
 })
 
 AimTab:CreateToggle({
-    Name = "RGBFOV (Mode Arc-en-ciel)",
+    Name = "RGBFOV",
     CurrentValue = _G.megaRGBFOV,
     Callback = function(v) _G.megaRGBFOV = v end
 })
 
 AimTab:CreateColorPicker({
-    Name = "FOVColor (Couleur du cercle)",
+    Name = "FOVColor",
     Color = _G.megaFOVColor,
     Callback = function(customColor) _G.megaFOVColor = customColor end
 })
 
 AimTab:CreateSlider({
-    Name = "FOVThickness (Épaisseur du trait)",
+    Name = "FOVThickness",
     Range = {1, 10},
     Increment = 1,
     Suffix = " px",
@@ -1601,7 +1601,7 @@ AimTab:CreateSlider({
 })
 
 AimTab:CreateSlider({
-    Name = "FOVSides (Forme/Netteté du cercle)",
+    Name = "FOVSides",
     Range = {16, 128},
     Increment = 4,
     Suffix = " Côtés",
@@ -1610,7 +1610,7 @@ AimTab:CreateSlider({
 })
 
 -- 5. OPTIONS AVANCÉES
-AimTab:CreateSection("⚡ Options d'Attaque Évoluées")
+AimTab:CreateSection("extrat option sa peut ne pas fonctionner")
 
 AimTab:CreateToggle({
     Name = "AutoShoot (Tir Automatique)",
